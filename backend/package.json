@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
     "prisma": "npx prisma db push && npx prisma generate",
     "dev": "nodemon server.js"
   },
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14",
-    "prisma": "6.19"
+    "prisma": "6.19",
+    "vitest": "^4.1.2"
   }
 }
