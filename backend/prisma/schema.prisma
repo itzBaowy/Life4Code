@@ -13,9 +13,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model Users {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  username  String   @unique
   email     String   @unique
   name      String?
   createdAt DateTime @default(now())
+}
+
+model Role {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  name String @unique
+  description String?
+  permission String[]
 }
