@@ -15,12 +15,13 @@ datasource db {
 
 model Users {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  username  String   @unique
+  userName  String   @unique
   email     String   @unique
   password  String
-  name      String?
-  roleId    String?  @db.ObjectId
-  role      Role?    @relation(fields: [roleId], references: [id])
+  name      String
+  phoneNumber String
+  roleId    String  @db.ObjectId
+  role      Role    @relation(fields: [roleId], references: [id])
   createdAt DateTime @default(now())
 }
 
