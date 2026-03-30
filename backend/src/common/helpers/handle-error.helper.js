@@ -6,7 +6,7 @@ import { statusCodes } from "./status-code.helper.js";
  * Để ở cuối để gom tất cả các lỗi có trong dự án
  */
 export const appErorr = (err, req, res, next) => {
-    console.log(`Middleware đặc biệt, bắt lỗi`, err);
+    console.log(`Error from middleware: `, err);
 
     if (err instanceof jwt.JsonWebTokenError) {
         err.code = statusCodes.UNAUTHORIZED; // 401 => FE logout người dùng
