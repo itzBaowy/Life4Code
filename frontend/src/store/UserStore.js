@@ -1,0 +1,38 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { authCookie } from "../utils/AuthCookie";
+
+export const useUserStore = create(
+    persist(
+        (set) => ({
+            user: null,
+            setUser: (userData) =>
+                set({
+                    user: {
+                        id: userData.id,
+                        email: userData.email,
+                        fullName: userData.fullName,
+                        phoneNumber: userData.phoneNumber,
+                        role: userData.role?.name,
+                        permissions: userData.role?.permissions || [],
+                        createdAt: userData.createdAt,
+                    },
+                }),
+
+            updateUser: (updates) =>
+                set((state) => ({
+                    user: state.user ? { ...state.user, ...updates } : null,
+                })),
+
+            clearUser: () => {
+                set({ user: null });
+                localStorage.clear();
+                authCookie.clearAccessTokens();
+                authCookie.clearRefreshToken();
+            },
+        }),
+        {
+            name: "user-storage",
+        },
+    ),
+);
