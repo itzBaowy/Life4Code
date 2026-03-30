@@ -2,11 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import rootRouter from './src/routers/root.router.js';
 import { createServer } from 'http';
+import { appErorr } from './src/common/helpers/handle-error.helper.js';
+import { NotFoundException } from './src/common/helpers/exception.helper.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import { swaggerOptions } from './src/common/swagger/swagger.config.js';
 
-
+const app = express();
 const PORT = process.env.PORT;
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
@@ -36,7 +38,7 @@ app.use((req, res, next) => {
 });
 app.use(appErorr);
 const httpServer = createServer(app);
-initSocket(httpServer);
+// initSocket(httpServer);
 // Khởi chạy Server
 httpServer.listen(PORT, () => {
     console.log(`-----------------------------------------`);
