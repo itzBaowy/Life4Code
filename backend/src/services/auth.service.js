@@ -3,16 +3,21 @@ import bcrypt from 'bcryptjs';
 import { tokenService } from './token.service.js';
 import { BadRequestException, UnauthorizedException } from "../common/helpers/exception.helper.js";
 import { validateUsername, validatePassword, validateEmail } from '../common/helpers/validate.helper.js';
+import { validatePhoneNumber } from '../common/helpers/validate.helper.js';
 
 export const authService = {
     async register(req) {
-        const { username, email, password } = req.body;
+        const { username, name, email, password, phoneNumber } = req.body;
         // Validate username
         validateUsername(username);
+        // Validate name
+        validateName(name);
         // Validate email
         validateEmail(email);
         // Validate password
         validatePassword(password);
+        // Validate phone number
+        validatePhoneNumber(phoneNumber);
         //check duplicate username
         const existUsername = await prisma.users.findUnique({ where: { username } });
         if (existUsername) throw new BadRequestException('Username đã tồn tại');
@@ -40,11 +45,11 @@ export const authService = {
     },
 
     async login(req) {
-        const { username, password } = req.body;
+        const { userName, password } = req.body;
 
         const userExits = await prisma.users.findUnique({
             where: {
-                username: username,
+                username: userName,
             },
         });
 

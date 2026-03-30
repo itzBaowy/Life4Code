@@ -23,7 +23,9 @@ const authRouter = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               fullName:
+ *               userName:
+ *                type: string
+ *               name:
  *                 type: string
  *               email:
  *                 type: string
@@ -50,7 +52,7 @@ authRouter.post('/register', authController.register);
  *           schema:
  *             type: object
  *             properties:
- *               email:
+ *               userName:
  *                 type: string
  *               password:
  *                 type: string
@@ -59,3 +61,7 @@ authRouter.post('/register', authController.register);
  *         description: Đăng nhập thành công
  */
 authRouter.post('/login', authController.login);
+
+
+
+export default authRouter;

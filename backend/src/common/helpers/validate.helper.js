@@ -64,3 +64,32 @@ export function validateUsername(username) {
     }
     return true;
 }
+
+export function validatePhoneNumber(phoneNumber) {
+    if (!phoneNumber) {
+        throw new BadRequestException("Số điện thoại không được để trống");
+    }
+
+    // Chỉ cho phép số, tối đa 15 ký tự
+    const phoneRegex = /^[0-9]{1,15}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+        throw new BadRequestException(
+            "Số điện thoại chỉ được chứa số và phải có tối đa 15 ký tự"
+        );
+    }
+    return true;
+}
+
+export function validateName(name) {
+    if (!name) {
+        throw new BadRequestException("Tên không được để trống");
+    }
+    // Chỉ cho phép chữ cái và khoảng trắng, tối đa 50 ký tự
+    const nameRegex = /^[a-zA-Z\s]{1,50}$/;
+    if (!nameRegex.test(name)) {
+        throw new BadRequestException(
+            "Tên chỉ được chứa chữ cái và khoảng trắng, tối đa 50 ký tự"
+        );
+    }
+    return true;
+} 

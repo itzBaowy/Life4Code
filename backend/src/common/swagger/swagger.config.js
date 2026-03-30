@@ -2,6 +2,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 const mode = process.env.MODE;
+const PORT = process.env.PORT;
 export const swaggerOptions = {
     definition: {
         openapi: '3.0.0',
@@ -12,7 +13,7 @@ export const swaggerOptions = {
         },
         servers: [
             mode === 'development'
-                ? { url: 'http://localhost:5000', description: 'Development server' }
+                ? { url: `http://localhost:${PORT}`, description: 'Development server' }
                 : { url: 'https://life4code.onrender.com', description: 'Production server' }
         ],
         components: {
