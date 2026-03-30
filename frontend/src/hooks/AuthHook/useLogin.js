@@ -3,30 +3,33 @@ import { loginService } from "../../services/Auth/AuthService";
 import { authCookie } from "../../utils/AuthCookie";
 import { useGetUserInfo } from "./useGetUserInfo";
 import { useUserStore } from "../../store/UserStore";
+import { useNotification } from "../../components/common/NotificationStack";
 
 export const useLogin = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const { showSuccess, showError } = useNotification();
     const { getInfo } = useGetUserInfo();
-    const setUser = useUserStore.getState().setUser;
+    const setUser = useUserStore((state) => state.setUser);
 
-    const login = async ({ email, password, deviceId }) => {
+    const login = async ({ userName, password }) => {
         setLoading(true);
         setError(null);
 
         try {
-            const res = await loginService({ email, password, deviceId });
+            const res = await loginService({ userName, password });
 
             const { accessToken, refreshToken } = res.data.data;
             authCookie.setTokens({ accessToken, refreshToken });
 
-            if (res.data.data.requireOtp) {
-                return res.data.data;
-            }
-
             const user = await getInfo();
 
             setUser(user);
+
+            showSuccess({
+                title: "Login Successful",
+                message: "Welcome back! You have been logged in successfully.",
+            });
 
             return user;
         } catch (error) {

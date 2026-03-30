@@ -15,7 +15,10 @@ const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
 app.set('trust proxy', true);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-app.use(cors());           // Cho phép FE gọi API
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true,
+})); // Cho phép FE gọi API đúng chuẩn CORS khi dùng cookie/token
 app.use(express.json());   // Đọc được body JSON
 
 // Khai báo Routes

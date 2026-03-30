@@ -5,9 +5,19 @@ import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import { useLogin } from '../../hooks/AuthHook/useLogin';
 import { LoginValidation } from '../../validation/AuthValidation';
+import { useNotification } from '../../components/common/NotificationStack';
+import { useNavigate } from 'react-router-dom';
+import { AUTH_MESSAGES } from '../../messages/toastConstant';
 
+// Dummy AutoRedirect, bạn nên thay bằng logic thực tế
+const AutoRedirect = (role) => {
+  if (role === 'Admin') return '/admin';
+  return '/';
+};
 export default function LoginPage() {
   const { login, loading, error } = useLogin();
+  const { showSuccess, showError } = useNotification();
+  const navigate = useNavigate();
 
   const formik = useFormik({
     initialValues: {
@@ -15,12 +25,24 @@ export default function LoginPage() {
       password: '',
     },
     validationSchema: LoginValidation,
-    onSubmit: async (values) => {   
+    onSubmit: async (values) => {
       try {
-        await login(values);
-        // TODO: Redirect or show success
-      } catch (e) {
-        // Error handled in hook
+        const res = await login(values);
+        
+        showSuccess(
+          "Success!", 
+          "You have successfully logged in!"
+        );
+
+        setTimeout(() => {
+          navigate(AutoRedirect(res.role?.name));
+        }, 1500);
+
+      } catch (err) {
+        const errorMessage =
+          err?.response?.data?.message ||
+          AUTH_MESSAGES.LOGIN.INVALID_CREDENTIALS.message;
+        showError(AUTH_MESSAGES.LOGIN.INVALID_CREDENTIALS.title, errorMessage);
       }
     },
   });
