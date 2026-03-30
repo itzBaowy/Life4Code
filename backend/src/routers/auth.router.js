@@ -1,6 +1,7 @@
 import express from 'express';
 // Lưu ý: Dùng dấu { } để import vì bên controller là named export
 import { authController } from '../controllers/auth.controller.js';
+import { protect } from '../common/middlewares/protect.middleware.js';
 const authRouter = express.Router();
 
 /**
@@ -62,6 +63,18 @@ authRouter.post('/register', authController.register);
  */
 authRouter.post('/login', authController.login);
 
-
+/**
+ * @swagger
+ * /api/auth/info:
+ *   get:
+ *     summary: Lấy thông tin người dùng
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lấy thông tin người dùng thành công
+ */
+authRouter.get('/info', protect, authController.getInfo);
 
 export default authRouter;

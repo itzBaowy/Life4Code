@@ -69,4 +69,11 @@ export const authService = {
 
         return tokens;
     },
+
+    async getInfo(req) {
+        delete req.user.password;
+
+        return req.user;
+    },
+
 };
