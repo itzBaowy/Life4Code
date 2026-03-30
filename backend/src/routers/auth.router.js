@@ -1,7 +1,6 @@
 import express from 'express';
 // Lưu ý: Dùng dấu { } để import vì bên controller là named export
 import { authController } from '../controllers/auth.controller.js';
-import { protect } from '../common/middlewares/protect.middleware.js';
 const authRouter = express.Router();
 
 /**
