@@ -2,14 +2,14 @@ import prisma from '../prisma/connect.prisma.js';
 import bcrypt from 'bcryptjs';
 import { tokenService } from './token.service.js';
 import { BadRequestException, UnauthorizedException } from "../common/helpers/exception.helper.js";
-import { validateUsername, validatePassword, validateEmail } from '../common/helpers/validate.helper.js';
+import { validateUsername, validateName, validatePassword, validateEmail } from '../common/helpers/validate.helper.js';
 import { validatePhoneNumber } from '../common/helpers/validate.helper.js';
 
 export const authService = {
     async register(req) {
-        const { username, name, email, password, phoneNumber } = req.body;
+        const { userName, name, email, password, phoneNumber } = req.body;
         // Validate username
-        validateUsername(username);
+        validateUsername(userName);
         // Validate name
         validateName(name);
         // Validate email
@@ -19,7 +19,7 @@ export const authService = {
         // Validate phone number
         validatePhoneNumber(phoneNumber);
         //check duplicate username
-        const existUsername = await prisma.users.findUnique({ where: { username } });
+        const existUsername = await prisma.users.findUnique({ where: { userName } });
         if (existUsername) throw new BadRequestException('Username đã tồn tại');
         // check duplicate email
         const existEmail = await prisma.users.findUnique({ where: { email } });
@@ -37,7 +37,9 @@ export const authService = {
             data: {
                 email,
                 password: hashedPassword,
-                username,
+                userName,
+                name,
+                phoneNumber,
                 roleId: userRole.id,
             },
             include: { role: true }
@@ -49,7 +51,7 @@ export const authService = {
 
         const userExits = await prisma.users.findUnique({
             where: {
-                username: userName,
+                userName: userName,
             },
         });
 
