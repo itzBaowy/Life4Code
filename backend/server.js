@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import rootRouter from './src/routers/root.router.js';
 import { createServer } from 'http';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
+import { swaggerOptions } from './src/common/swagger/swagger.config.js';
+
 
 const PORT = process.env.PORT;
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
