@@ -6,7 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "prisma": "npx prisma db push && npx prisma generate",
-    "dev": "nodemon server.js"
+    "dev": "nodemon -L --exec tsx server.js"
   },
   "type": "module",
   "keywords": [],
@@ -25,6 +25,9 @@
   "devDependencies": {
     "nodemon": "^3.1.14",
     "prisma": "6.19",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
     "vitest": "^4.1.2"
   }
 }
