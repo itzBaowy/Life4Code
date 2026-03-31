@@ -26,11 +26,6 @@ export const useLogin = () => {
 
             setUser(user);
 
-            showSuccess({
-                title: "Login Successful",
-                message: "Welcome back! You have been logged in successfully.",
-            });
-
             return user;
         } catch (error) {
             const message = error.response.data.message;
