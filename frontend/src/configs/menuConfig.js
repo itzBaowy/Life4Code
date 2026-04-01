@@ -15,6 +15,12 @@ export const menuConfig = [
                 roles: ["admin"],
             },
             {
+                id: "user-management",
+                label: "Quản lý người dùng",
+                path: "users",
+                roles: ["admin"],
+            },
+            {
                 id: "my-courses",
                 label: "Khoá học của tôi",
                 path: "my-courses",

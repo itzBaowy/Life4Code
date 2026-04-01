@@ -2,6 +2,7 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import AdminPage from "../pages/Admin/AdminPage";
 import CourseManagementPage from "../pages/Admin/CourseManagementPage";
+import UserManagementPage from "../pages/Admin/UserManagementPage";
 import MyCoursesPage from "../pages/User/MyCoursesPage";
 import UserPage from "../pages/User/UserPage";
 
@@ -15,6 +16,16 @@ const DynamicComponent = ({ routeId }) => {
   if (routeId === "course-management") {
     return role?.toLowerCase() === "admin" ? (
       <CourseManagementPage />
+    ) : (
+      <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-slate-600">
+        Bạn không có quyền truy cập vào trang này.
+      </div>
+    );
+  }
+
+  if (routeId === "user-management") {
+    return role?.toLowerCase() === "admin" ? (
+      <UserManagementPage />
     ) : (
       <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-slate-600">
         Bạn không có quyền truy cập vào trang này.
