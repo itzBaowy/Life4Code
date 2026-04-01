@@ -9,8 +9,13 @@ export const menuConfig = [
             },
             {
                 id: "course-management",
-                label: "Quan Ly Khoa Hoc",
+                label: "Quản lý khoá học",
                 path: "courses",
+            },
+            {
+                id: "my-courses",
+                label: "Khoá học của tôi",
+                path: "my-courses",
             },
         ],
     },
@@ -23,7 +28,7 @@ export const buildMenuByPermissions = (user) => {
     const roleName = String(user.role || "").toLowerCase();
     if (roleName === "admin") return "ALL";
 
-    const allowed = new Set(["dashboard"]);
+    const allowed = new Set(["dashboard", "my-courses"]);
     const permissions = Array.isArray(user.permissions) ? user.permissions : [];
 
     permissions.forEach((perm) => {
