@@ -4,6 +4,7 @@ import { tokenService } from './token.service.js';
 import { BadRequestException, UnauthorizedException } from "../common/helpers/exception.helper.js";
 import { validateUsername, validateName, validatePassword, validateEmail } from '../common/helpers/validate.helper.js';
 import { validatePhoneNumber } from '../common/helpers/validate.helper.js';
+import { getTokenFromHeader } from '../common/helpers/function.helper.js';
 
 export const authService = {
     async register(req) {
@@ -66,6 +67,40 @@ export const authService = {
         }
 
         const tokens = tokenService.createTokens(userExits.id);
+
+        return tokens;
+    },
+
+    async refreshToken(req) {
+        // Lấy accessToken từ header Authorization
+        const accessToken = getTokenFromHeader(req);
+        // Lấy refreshToken từ body
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            throw new BadRequestException("Refresh Token required");
+        }
+
+        // accessToken: đang bị hết hạn
+        // verify accessToken phải loại trừ hết hạn
+        const decodeAccessToken = tokenService.verifyAccessToken(accessToken, { ignoreExpiration: true });
+        const decodeRefreshToken = tokenService.verifyRefreshToken(refreshToken);
+
+        if (decodeAccessToken.userId !== decodeRefreshToken.userId) {
+            throw new UnauthorizedException("Invalid Refresh Token");
+        }
+
+        const userExist = await prisma.users.findUnique({
+            where: {
+                id: decodeRefreshToken.userId,
+            },
+        });
+        if (!userExist) {
+            throw new UnauthorizedException("No existed user");
+        }
+
+        // Trường hợp: trả 2 token
+        // refreshToken (1d) sẽ được làm mới (rotate): chỉ cần trong 1 ngày mà người dùng không đăng nhập => logout
+        const tokens = tokenService.createTokens(userExist.id)
 
         return tokens;
     },
