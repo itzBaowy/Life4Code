@@ -12,6 +12,14 @@ const toolbarOptions = [
 
 const modules = {
   toolbar: toolbarOptions,
+  clipboard: {
+    matchVisual: false,
+  },
+  history: {
+    delay: 250,
+    maxStack: 500,
+    userOnly: true,
+  },
 };
 
 const formats = [
@@ -19,8 +27,12 @@ const formats = [
   "bold",
   "italic",
   "underline",
+  "strike",
+  "blockquote",
   "list",
   "bullet",
+  "indent",
+  "code",
   "code-block",
   "link",
 ];
@@ -37,13 +49,14 @@ const RichTextEditor = ({
   };
 
   return (
-    <div className="rounded-lg border border-[#2f3652] bg-[#0f1320]">
+    <div className="rich-text-editor overflow-hidden rounded-lg border border-[#2f3652] bg-[#0f1320]">
       <ReactQuill
         theme="snow"
         value={value}
         onChange={handleChange}
         modules={modules}
         formats={formats}
+        preserveWhitespace
         placeholder={placeholder}
         className="text-slate-100"
       />

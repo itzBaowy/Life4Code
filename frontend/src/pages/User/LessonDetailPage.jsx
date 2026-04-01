@@ -6,6 +6,7 @@ import {
   updateLessonProgressService,
 } from "../../services/Course/CourseService";
 import { useCourseProgressStore } from "../../store/CourseProgressStore";
+import HtmlRenderer from "../../components/common/HtmlRenderer";
 
 const normalizePayload = (response) =>
   response?.data?.data ?? response?.data?.content;
@@ -170,8 +171,8 @@ const LessonDetailPage = () => {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[1fr_330px]">
-        <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
+        <div className="min-w-0 space-y-4">
           <section className="rounded-xl border border-[#23263a] bg-[#151925] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <button
@@ -197,7 +198,7 @@ const LessonDetailPage = () => {
             </div>
           </section>
 
-          <section className="rounded-xl border border-[#23263a] bg-[#151925] p-5">
+          <section className="min-w-0 rounded-xl border border-[#23263a] bg-[#151925] p-5">
             <h1 className="text-2xl font-bold text-slate-100">
               {currentLesson.title}
             </h1>
@@ -243,10 +244,13 @@ const LessonDetailPage = () => {
                 </p>
               )
             ) : (
-              <div className="rounded-lg border border-[#23263a] bg-[#0f1320] p-4">
-                <p className="whitespace-pre-line text-sm leading-7 text-slate-200">
-                  {currentLesson.content || "Bai hoc text chua co noi dung."}
-                </p>
+              <div className="min-w-0 overflow-hidden rounded-lg border border-[#23263a] bg-[#0f1320] p-4">
+                <HtmlRenderer
+                  htmlContent={
+                    currentLesson.content ||
+                    "<p>Bai hoc text chua co noi dung.</p>"
+                  }
+                />
               </div>
             )}
           </section>

@@ -1,2 +1,49 @@
 @import "tailwindcss";
 
+.rich-text-editor .ql-toolbar.ql-snow {
+	border: 0;
+	border-bottom: 1px solid #2f3652;
+	background: #151925;
+}
+
+.rich-text-editor .ql-container.ql-snow {
+	border: 0;
+	background: #0f1320;
+}
+
+.rich-text-editor .ql-editor {
+	min-height: 220px;
+	color: #e2e8f0;
+	font-size: 15px;
+	line-height: 1.7;
+}
+
+.rich-text-editor .ql-editor.ql-blank::before {
+	color: #64748b;
+	font-style: normal;
+}
+
+.rich-text-editor .ql-snow .ql-stroke {
+	stroke: #cbd5e1;
+}
+
+.rich-text-editor .ql-snow .ql-fill {
+	fill: #cbd5e1;
+}
+
+.rich-text-editor .ql-snow .ql-picker-label,
+.rich-text-editor .ql-snow .ql-picker-item {
+	color: #cbd5e1;
+}
+
+.rich-text-editor .ql-snow .ql-picker-options {
+	background: #151925;
+	border-color: #2f3652;
+}
+
+.rich-text-editor .ql-snow .ql-tooltip {
+	background: #151925;
+	border-color: #2f3652;
+	color: #e2e8f0;
+}
+
