@@ -1,14 +1,66 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, CheckCheck } from "lucide-react";
 import { useUserStore } from "../../store/UserStore";
 
 const Topbar = () => {
   const user = useUserStore((state) => state.user);
   const clearUser = useUserStore((state) => state.clearUser);
   const [openProfile, setOpenProfile] = useState(false);
+  const [openNotifications, setOpenNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: "ntf-1",
+      content: "Ban vua duoc mo quyen vao module User Dashboard moi.",
+      time: "10 phut truoc",
+      isRead: false,
+    },
+    {
+      id: "ntf-2",
+      content: "Giang vien da danh gia bai tap Login/Register cua ban.",
+      time: "2 gio truoc",
+      isRead: false,
+    },
+    {
+      id: "ntf-3",
+      content: "Co cap nhat tai lieu cho phan Router va Route Guard.",
+      time: "Hom qua",
+      isRead: true,
+    },
+  ]);
+
+  const profileRef = useRef(null);
+  const notificationRef = useRef(null);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((item) => !item.isRead).length,
+    [notifications],
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setOpenProfile(false);
+      }
+
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setOpenNotifications(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     clearUser();
     window.location.href = "/login";
+  };
+
+  const markAllAsRead = () => {
+    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
   };
 
   return (
@@ -21,17 +73,56 @@ const Topbar = () => {
       {/* Notification & Avatar */}
       <div className="flex items-center gap-6">
         {/* Notification bell */}
-        <button className="relative focus:outline-none">
-          <span className="material-symbols-outlined text-2xl text-slate-200">
-            notifications
-          </span>
-          {/* Badge */}
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1">
-            1
-          </span>
-        </button>
+        <div ref={notificationRef} className="relative">
+          <button
+            className="relative rounded-md p-1.5 text-slate-200 transition hover:bg-[#23263a]"
+            onClick={() => setOpenNotifications((prev) => !prev)}
+          >
+            <Bell size={22} />
+            {unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
+          {openNotifications && (
+            <div className="absolute right-0 z-50 mt-2 w-96 rounded-lg border border-[#23263a] bg-[#151925] shadow-xl">
+              <div className="flex items-center justify-between border-b border-[#23263a] px-4 py-3">
+                <h3 className="text-sm font-semibold text-slate-100">
+                  Notifications
+                </h3>
+                {unreadCount > 0 && (
+                  <button
+                    className="inline-flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
+                    onClick={markAllAsRead}
+                  >
+                    <CheckCheck size={14} />
+                    Mark all as read
+                  </button>
+                )}
+              </div>
+
+              <div className="max-h-80 overflow-y-auto p-3">
+                {notifications.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`mb-2 rounded-md border p-3 last:mb-0 ${
+                      item.isRead
+                        ? "border-[#23263a] bg-[#0f1320]"
+                        : "border-cyan-700/40 bg-[#11172a]"
+                    }`}
+                  >
+                    <p className="text-sm text-slate-100">{item.content}</p>
+                    <p className="mt-1 text-xs text-slate-400">{item.time}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         {/* Avatar */}
-        <div className="relative">
+        <div ref={profileRef} className="relative">
           <img
             src={user?.avatar || "/default-avatar.png"}
             alt="avatar"

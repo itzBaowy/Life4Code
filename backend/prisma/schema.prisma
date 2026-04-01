@@ -23,6 +23,8 @@ model Users {
   roleId    String  @db.ObjectId
   role      Role    @relation(fields: [roleId], references: [id])
   createdAt DateTime @default(now())
+  enrollments Enrollment[]
+  lessonProgresses LessonProgress[]
 }
 
 model Role {
@@ -31,4 +33,100 @@ model Role {
   description String?
   permission String[]
   users       Users[]
+}
+
+// Khai báo Enum cho loại bài học
+enum LessonType {
+  TEXT
+  VIDEO
+}
+
+model Course {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  slug        String       @unique
+  description String?
+  thumbnail   String?      // Link ảnh bìa khóa học
+  isPublished Boolean      @default(false)
+  
+  // Quan hệ
+  sections    Section[]    // Khóa học chia làm nhiều Chương
+  enrollments Enrollment[] // Những ai đang học khóa này
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+// Bảng "Chương" (Ví dụ: 1. Giới thiệu, 2. Kiến thức cốt lõi)
+model Section {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  order     Int      // Số thứ tự để sắp xếp chương (1, 2, 3...)
+  
+  courseId  String   @db.ObjectId
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  lessons   Lesson[] // Một chương có nhiều bài học
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Bảng Bài học
+model Lesson {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  slug        String           @unique
+  type        LessonType       @default(TEXT) // Phân biệt TEXT hay VIDEO
+  
+  content     String?          // Dành cho dạng TEXT (Lưu HTML hoặc Markdown)
+  videoUrl    String?          // Dành cho dạng VIDEO (Link Cloudinary/YouTube)
+  duration    Int?             // Thời lượng bài học (tính bằng giây)
+  order       Int              // Số thứ tự bài học trong 1 Chương
+  
+  isPublished Boolean          @default(false)
+
+  sectionId   String           @db.ObjectId
+  section     Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  progresses  LessonProgress[]
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+// Bảng Ghi danh (Để hiện ở mục "Khóa học của tôi" và theo dõi % hoàn thành)
+model Enrollment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  courseId  String   @db.ObjectId
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  progress  Int      @default(0) // Lưu phần trăm (0 - 100) hoặc số bài đã học
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Đảm bảo 1 User chỉ Enroll 1 khóa học 1 lần
+  @@unique([userId, courseId])
+}
+
+// Bảng Tiến độ Bài học (Để đánh dấu tick xanh đã hoàn thành)
+model LessonProgress {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  user        Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  lessonId    String   @db.ObjectId
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  
+  isCompleted Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Đảm bảo 1 User chỉ hoàn thành 1 bài học 1 lần
+  @@unique([userId, lessonId])
 }

@@ -7,6 +7,11 @@ export const menuConfig = [
                 label: "Tổng Quan",
                 path: "dashboard",
             },
+            {
+                id: "course-management",
+                label: "Quan Ly Khoa Hoc",
+                path: "courses",
+            },
         ],
     },
 ];
