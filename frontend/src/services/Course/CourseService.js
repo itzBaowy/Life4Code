@@ -25,6 +25,18 @@ export const deleteCourseService = (courseId) =>
 export const getCourseLessonsService = (courseId) =>
     api.get(`/api/course/catalog/${courseId}/lessons`);
 
+export const getCourseSectionsService = (courseId) =>
+    api.get(`/api/course/catalog/${courseId}/sections`);
+
+export const createSectionService = (courseId, payload) =>
+    api.post(`/api/course/catalog/${courseId}/sections`, payload);
+
+export const updateSectionService = (courseId, sectionId, payload) =>
+    api.patch(`/api/course/catalog/${courseId}/sections/${sectionId}`, payload);
+
+export const deleteSectionService = (courseId, sectionId) =>
+    api.delete(`/api/course/catalog/${courseId}/sections/${sectionId}`);
+
 export const createLessonService = (courseId, payload) =>
     api.post(`/api/course/catalog/${courseId}/lessons`, payload);
 

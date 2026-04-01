@@ -18,6 +18,8 @@ import DynamicComponent from "./DynamicComponent";
 import { buildMenuByPermissions, menuConfig } from "../configs/menuConfig";
 import CourseDetailPage from "../pages/User/CourseDetailPage";
 import LessonDetailPage from "../pages/User/LessonDetailPage";
+import LessonManagementPage from "../pages/Admin/LessonManagementPage";
+import LessonEditPage from "../pages/Admin/LessonEditPage";
 
 export const PrivateRoute = ({ requiredMenuId, children }) => {
   const user = useUserStore((state) => state.user);
@@ -121,6 +123,22 @@ export const router = createBrowserRouter([
             element: (
               <PrivateRoute requiredMenuId="my-courses">
                 <LessonDetailPage />
+              </PrivateRoute>
+            ),
+          },
+          {
+            path: "course/:courseId/lessons",
+            element: (
+              <PrivateRoute requiredMenuId="course-management">
+                <LessonManagementPage />
+              </PrivateRoute>
+            ),
+          },
+          {
+            path: "course/:courseId/lessons/:lessonId/edit",
+            element: (
+              <PrivateRoute requiredMenuId="course-management">
+                <LessonEditPage />
               </PrivateRoute>
             ),
           },

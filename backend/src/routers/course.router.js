@@ -159,6 +159,11 @@ courseRouter.patch('/catalog/:courseId', protect, courseController.updateCourse)
  */
 courseRouter.delete('/catalog/:courseId', protect, courseController.deleteCourse);
 
+courseRouter.get('/catalog/:courseId/sections', protect, courseController.getCourseSections);
+courseRouter.post('/catalog/:courseId/sections', protect, courseController.createSection);
+courseRouter.patch('/catalog/:courseId/sections/:sectionId', protect, courseController.updateSection);
+courseRouter.delete('/catalog/:courseId/sections/:sectionId', protect, courseController.deleteSection);
+
 courseRouter.get('/catalog/:courseId/lessons', protect, courseController.getCourseLessons);
 courseRouter.post('/catalog/:courseId/lessons', protect, courseController.createLesson);
 courseRouter.patch('/catalog/:courseId/lessons/:lessonId', protect, courseController.updateLesson);

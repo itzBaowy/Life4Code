@@ -81,6 +81,18 @@ const LessonDetailPage = () => {
     [allLessons, lessonId],
   );
 
+  const currentLessonIndex = useMemo(
+    () => allLessons.findIndex((lesson) => lesson.id === lessonId),
+    [allLessons, lessonId],
+  );
+
+  const previousLesson =
+    currentLessonIndex > 0 ? allLessons[currentLessonIndex - 1] : null;
+  const nextLesson =
+    currentLessonIndex >= 0 && currentLessonIndex < allLessons.length - 1
+      ? allLessons[currentLessonIndex + 1]
+      : null;
+
   const currentSectionId = useMemo(() => {
     const sections = courseDetail?.course?.sections || [];
     const section = sections.find((item) =>
@@ -202,6 +214,11 @@ const LessonDetailPage = () => {
     });
   };
 
+  const navigateToLesson = (targetLessonId) => {
+    if (!targetLessonId) return;
+    navigate(`/${role}/my-courses/${courseId}/lessons/${targetLessonId}`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
@@ -255,6 +272,24 @@ const LessonDetailPage = () => {
                   : isCompleted
                     ? "Danh dau chua hoan thanh"
                     : "Danh dau hoan thanh"}
+              </button>
+
+              <button
+                type="button"
+                disabled={!previousLesson}
+                onClick={() => navigateToLesson(previousLesson?.id)}
+                className="rounded-lg border border-[#2f3652] px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-[#23263a] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Bài trước
+              </button>
+
+              <button
+                type="button"
+                disabled={!nextLesson}
+                onClick={() => navigateToLesson(nextLesson?.id)}
+                className="rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Bài tiếp
               </button>
             </div>
           </section>
