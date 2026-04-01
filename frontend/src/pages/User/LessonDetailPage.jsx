@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
 import {
   getCourseLessonProgressService,
   getMyCourseDetailService,
@@ -29,6 +30,7 @@ const LessonDetailPage = () => {
 
   const [courseDetail, setCourseDetail] = useState(null);
   const [completedLessons, setCompletedLessons] = useState(new Set());
+  const [expandedSectionIds, setExpandedSectionIds] = useState(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -79,6 +81,14 @@ const LessonDetailPage = () => {
     [allLessons, lessonId],
   );
 
+  const currentSectionId = useMemo(() => {
+    const sections = courseDetail?.course?.sections || [];
+    const section = sections.find((item) =>
+      (item.lessons || []).some((lesson) => lesson.id === lessonId),
+    );
+    return section?.id;
+  }, [courseDetail, lessonId]);
+
   const completedCount = useMemo(
     () => allLessons.filter((lesson) => completedLessons.has(lesson.id)).length,
     [allLessons, completedLessons],
@@ -92,6 +102,17 @@ const LessonDetailPage = () => {
     if (!courseId) return;
     setCourseProgress(courseId, progressPercent);
   }, [courseId, progressPercent, setCourseProgress]);
+
+  useEffect(() => {
+    const sections = courseDetail?.course?.sections || [];
+    if (!sections.length) {
+      setExpandedSectionIds(new Set());
+      return;
+    }
+
+    const nextExpanded = new Set(sections.map((section) => section.id));
+    setExpandedSectionIds(nextExpanded);
+  }, [courseId, courseDetail, currentSectionId]);
 
   const handleToggleCompleted = async () => {
     if (!currentLesson?.id) return;
@@ -168,6 +189,18 @@ const LessonDetailPage = () => {
   }
 
   const isCompleted = completedLessons.has(currentLesson.id);
+
+  const toggleSection = (sectionId) => {
+    setExpandedSectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -270,54 +303,69 @@ const LessonDetailPage = () => {
                 key={section.id}
                 className="rounded-lg border border-[#23263a] bg-[#0d1322] p-3"
               >
-                <div className="mb-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className="mb-2 flex w-full items-center justify-between rounded-md border border-transparent px-1 py-1 text-left transition hover:border-[#2f3652]"
+                >
                   <p className="text-sm font-semibold text-slate-100">
                     {section.title}
                   </p>
-                  <span className="rounded-full bg-[#1d263f] px-2 py-0.5 text-[11px] text-slate-300">
-                    {(section.lessons || []).length}
-                  </span>
-                </div>
 
-                <div className="space-y-2">
-                  {(section.lessons || []).map((lesson) => {
-                    const lessonCompleted = completedLessons.has(lesson.id);
-                    const isCurrent = lesson.id === currentLesson.id;
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-[#1d263f] px-2 py-0.5 text-[11px] text-slate-300">
+                      {(section.lessons || []).length}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`text-slate-400 transition-transform ${
+                        expandedSectionIds.has(section.id) ? "rotate-180" : ""
+                      }`}
+                    />
+                  </div>
+                </button>
 
-                    return (
-                      <button
-                        key={lesson.id}
-                        type="button"
-                        onClick={() =>
-                          navigate(
-                            `/${role}/my-courses/${courseId}/lessons/${lesson.id}`,
-                          )
-                        }
-                        className={`w-full rounded-lg border px-3 py-2 text-left transition ${
-                          isCurrent
-                            ? "border-cyan-500 bg-cyan-600/20"
-                            : "border-[#23263a] bg-[#111a2e] hover:bg-[#18233d]"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="line-clamp-2 text-sm font-medium text-slate-100">
-                            {lesson.order}. {lesson.title}
+                {expandedSectionIds.has(section.id) && (
+                  <div className="space-y-2">
+                    {(section.lessons || []).map((lesson) => {
+                      const lessonCompleted = completedLessons.has(lesson.id);
+                      const isCurrent = lesson.id === currentLesson.id;
+
+                      return (
+                        <button
+                          key={lesson.id}
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              `/${role}/my-courses/${courseId}/lessons/${lesson.id}`,
+                            )
+                          }
+                          className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+                            isCurrent
+                              ? "border-cyan-500 bg-cyan-600/20"
+                              : "border-[#23263a] bg-[#111a2e] hover:bg-[#18233d]"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="line-clamp-2 text-sm font-medium text-slate-100">
+                              {lesson.order}. {lesson.title}
+                            </p>
+                            <span
+                              className={`mt-0.5 h-2.5 w-2.5 rounded-full ${
+                                lessonCompleted
+                                  ? "bg-emerald-400"
+                                  : "bg-slate-500"
+                              }`}
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {lesson.type} · {formatDuration(lesson.duration)}
                           </p>
-                          <span
-                            className={`mt-0.5 h-2.5 w-2.5 rounded-full ${
-                              lessonCompleted
-                                ? "bg-emerald-400"
-                                : "bg-slate-500"
-                            }`}
-                          />
-                        </div>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {lesson.type} · {formatDuration(lesson.duration)}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ))}
           </div>

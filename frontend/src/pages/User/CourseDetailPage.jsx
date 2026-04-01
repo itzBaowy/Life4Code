@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
 import {
   getCourseLessonProgressService,
   getMyCourseDetailService,
@@ -28,6 +29,7 @@ const CourseDetailPage = () => {
 
   const [courseDetail, setCourseDetail] = useState(null);
   const [completedLessons, setCompletedLessons] = useState(new Set());
+  const [expandedSectionIds, setExpandedSectionIds] = useState(new Set());
   const [savingLessonId, setSavingLessonId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -95,6 +97,13 @@ const CourseDetailPage = () => {
     setCourseProgress(courseId, progressPercent);
   }, [courseId, progressPercent, setCourseProgress]);
 
+  const course = courseDetail?.course;
+  const sections = course?.sections || [];
+
+  useEffect(() => {
+    setExpandedSectionIds(new Set());
+  }, [courseId, sections.length]);
+
   const handleToggleLesson = async (lessonId) => {
     if (!lessonId) return;
 
@@ -150,8 +159,17 @@ const CourseDetailPage = () => {
     );
   }
 
-  const course = courseDetail?.course;
-  const sections = course?.sections || [];
+  const toggleSection = (sectionId) => {
+    setExpandedSectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -216,49 +234,63 @@ const CourseDetailPage = () => {
               key={section.id}
               className="rounded-xl border border-[#23263a] bg-[#151925] p-5"
             >
-              <h2 className="text-lg font-semibold text-slate-100">
-                Section {section.order}: {section.title}
-              </h2>
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                className="flex w-full items-center justify-between rounded-lg border border-transparent px-1 py-1 text-left transition hover:border-[#2f3652]"
+              >
+                <h2 className="text-lg font-semibold text-slate-100">
+                  Section {section.order}: {section.title}
+                </h2>
+                <ChevronDown
+                  size={18}
+                  className={`text-slate-400 transition-transform ${
+                    expandedSectionIds.has(section.id) ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
-              <div className="mt-4 space-y-3">
-                {(section.lessons || []).map((lesson) => {
-                  const isCompleted = completedLessons.has(lesson.id);
-                  const isSaving = savingLessonId === lesson.id;
+              {expandedSectionIds.has(section.id) && (
+                <div className="mt-4 space-y-3">
+                  {(section.lessons || []).map((lesson) => {
+                    const isCompleted = completedLessons.has(lesson.id);
+                    const isSaving = savingLessonId === lesson.id;
 
-                  return (
-                    <div
-                      key={lesson.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#23263a] bg-[#0f1320] p-3"
-                    >
-                      <div>
-                        <p className="font-medium text-slate-100">
-                          {lesson.order}. {lesson.title}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {lesson.type} · {formatDuration(lesson.duration)}
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={isSaving}
-                        onClick={() => handleToggleLesson(lesson.id)}
-                        className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
-                          isCompleted
-                            ? "bg-emerald-600 text-white hover:bg-emerald-500"
-                            : "bg-cyan-600 text-white hover:bg-cyan-500"
-                        } ${isSaving ? "cursor-not-allowed opacity-70" : ""}`}
+                    return (
+                      <div
+                        key={lesson.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#23263a] bg-[#0f1320] p-3"
                       >
-                        {isSaving
-                          ? "Đang lưu..."
-                          : isCompleted
-                            ? "Đã hoàn thành"
-                            : "Đánh dấu hoàn thành"}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+                        <div>
+                          <p className="font-medium text-slate-100">
+                            {lesson.order}. {lesson.title}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            {lesson.type} · {formatDuration(lesson.duration)}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() => handleToggleLesson(lesson.id)}
+                          className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                            isCompleted
+                              ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                              : "bg-cyan-600 text-white hover:bg-cyan-500"
+                          } ${isSaving ? "cursor-not-allowed opacity-70" : ""}`}
+                        >
+                          {isSaving
+                            ? "Đang lưu..."
+                            : isCompleted
+                              ? "Đã hoàn thành"
+                              : "Đánh dấu hoàn thành"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </article>
           ))
         )}
