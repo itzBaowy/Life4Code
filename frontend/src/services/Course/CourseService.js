@@ -21,3 +21,15 @@ export const updateCourseService = (courseId, payload) =>
 
 export const deleteCourseService = (courseId) =>
     api.delete(`/api/course/catalog/${courseId}`);
+
+export const getCourseLessonsService = (courseId) =>
+    api.get(`/api/course/catalog/${courseId}/lessons`);
+
+export const createLessonService = (courseId, payload) =>
+    api.post(`/api/course/catalog/${courseId}/lessons`, payload);
+
+export const updateLessonService = (courseId, lessonId, payload) =>
+    api.patch(`/api/course/catalog/${courseId}/lessons/${lessonId}`, payload);
+
+export const deleteLessonService = (courseId, lessonId) =>
+    api.delete(`/api/course/catalog/${courseId}/lessons/${lessonId}`);

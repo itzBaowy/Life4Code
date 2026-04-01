@@ -2,6 +2,30 @@ import { responseSuccess } from '../common/helpers/function.helper.js';
 import { courseService } from '../services/course.service.js';
 
 export const courseController = {
+    async getCourseLessons(req, res, next) {
+        const result = await courseService.getCourseLessons(req);
+        const response = responseSuccess(result, 'Get course lessons successfully');
+        res.status(response.statusCode).json(response);
+    },
+
+    async createLesson(req, res, next) {
+        const result = await courseService.createLesson(req);
+        const response = responseSuccess(result, 'Create lesson successfully', 201);
+        res.status(response.statusCode).json(response);
+    },
+
+    async updateLesson(req, res, next) {
+        const result = await courseService.updateLesson(req);
+        const response = responseSuccess(result, 'Update lesson successfully');
+        res.status(response.statusCode).json(response);
+    },
+
+    async deleteLesson(req, res, next) {
+        const result = await courseService.deleteLesson(req);
+        const response = responseSuccess(result, 'Delete lesson successfully');
+        res.status(response.statusCode).json(response);
+    },
+
     async getMyCourseDetail(req, res, next) {
         const result = await courseService.getMyCourseDetail(req);
         const response = responseSuccess(result, 'Get my course detail successfully');

@@ -1,17 +1,36 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   createCourseService,
+  createLessonService,
+  deleteLessonService,
   deleteCourseService,
+  getCourseLessonsService,
   getCourseCatalogService,
+  updateLessonService,
   updateCourseService,
 } from "../../services/Course/CourseService";
 import { useNotification } from "../../components/common/NotificationStack";
+import RichTextEditor from "../../components/common/RichTextEditor";
+import HtmlRenderer from "../../components/common/HtmlRenderer";
 
 const initialForm = {
   title: "",
   slug: "",
   description: "",
   thumbnail: "",
+  isPublished: false,
+};
+
+const initialLessonForm = {
+  sectionTitle: "",
+  sectionOrder: "",
+  title: "",
+  slug: "",
+  type: "TEXT",
+  content: "",
+  videoUrl: "",
+  duration: "",
+  order: "",
   isPublished: false,
 };
 
@@ -35,6 +54,13 @@ const CourseManagementPage = () => {
   const [formData, setFormData] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const [lessonManagerCourse, setLessonManagerCourse] = useState(null);
+  const [lessonSections, setLessonSections] = useState([]);
+  const [isLessonLoading, setIsLessonLoading] = useState(false);
+  const [isLessonSubmitting, setIsLessonSubmitting] = useState(false);
+  const [lessonForm, setLessonForm] = useState(initialLessonForm);
+  const [editingLessonId, setEditingLessonId] = useState(null);
 
   const filteredCourses = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -187,6 +213,169 @@ const CourseManagementPage = () => {
     }
   };
 
+  const resetLessonForm = () => {
+    setLessonForm(initialLessonForm);
+    setEditingLessonId(null);
+  };
+
+  const openLessonManager = async (course) => {
+    setLessonManagerCourse(course);
+    setIsLessonLoading(true);
+    resetLessonForm();
+
+    try {
+      const response = await getCourseLessonsService(course.id);
+      const payload = response?.data?.data ?? response?.data?.content;
+      setLessonSections(
+        Array.isArray(payload?.sections) ? payload.sections : [],
+      );
+    } catch (error) {
+      showError(
+        "Load Lessons Failed",
+        normalizeErrorMessage(error, "Không thể tải danh sách bài học"),
+      );
+      setLessonSections([]);
+    } finally {
+      setIsLessonLoading(false);
+    }
+  };
+
+  const reloadLessonManager = async () => {
+    if (!lessonManagerCourse?.id) return;
+
+    try {
+      const response = await getCourseLessonsService(lessonManagerCourse.id);
+      const payload = response?.data?.data ?? response?.data?.content;
+      setLessonSections(
+        Array.isArray(payload?.sections) ? payload.sections : [],
+      );
+    } catch (error) {
+      showError(
+        "Reload Lessons Failed",
+        normalizeErrorMessage(error, "Không thể tải lại danh sách bài học"),
+      );
+    }
+  };
+
+  const handleLessonInputChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setLessonForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleEditLesson = (section, lesson) => {
+    setEditingLessonId(lesson.id);
+    setLessonForm({
+      sectionTitle: section.title || "",
+      sectionOrder: String(section.order ?? ""),
+      title: lesson.title || "",
+      slug: lesson.slug || "",
+      type: lesson.type || "TEXT",
+      content: lesson.content || "",
+      videoUrl: lesson.videoUrl || "",
+      duration:
+        lesson.duration === null || lesson.duration === undefined
+          ? ""
+          : String(lesson.duration),
+      order:
+        lesson.order === null || lesson.order === undefined
+          ? ""
+          : String(lesson.order),
+      isPublished: Boolean(lesson.isPublished),
+    });
+  };
+
+  const handleDeleteLesson = async (lessonId, lessonTitle) => {
+    if (!lessonManagerCourse?.id) return;
+
+    const accepted = window.confirm(
+      `Bạn chắc chắn muốn xoá bài học "${lessonTitle}"?`,
+    );
+    if (!accepted) return;
+
+    try {
+      await deleteLessonService(lessonManagerCourse.id, lessonId);
+      showSuccess("Delete Lesson Success", "Đã xoá bài học thành công");
+      if (editingLessonId === lessonId) {
+        resetLessonForm();
+      }
+      await reloadLessonManager();
+    } catch (error) {
+      showError(
+        "Delete Lesson Failed",
+        normalizeErrorMessage(error, "Không thể xoá bài học"),
+      );
+    }
+  };
+
+  const buildLessonPayload = () => {
+    return {
+      sectionTitle: lessonForm.sectionTitle.trim(),
+      sectionOrder: lessonForm.sectionOrder
+        ? Number(lessonForm.sectionOrder)
+        : undefined,
+      title: lessonForm.title.trim(),
+      slug: lessonForm.slug.trim() || undefined,
+      type: lessonForm.type,
+      content: lessonForm.type === "TEXT" ? lessonForm.content : undefined,
+      videoUrl:
+        lessonForm.type === "VIDEO" ? lessonForm.videoUrl.trim() : undefined,
+      duration: lessonForm.duration ? Number(lessonForm.duration) : undefined,
+      order: lessonForm.order ? Number(lessonForm.order) : undefined,
+      isPublished: Boolean(lessonForm.isPublished),
+    };
+  };
+
+  const handleLessonSubmit = async (event) => {
+    event.preventDefault();
+    if (!lessonManagerCourse?.id) return;
+
+    if (!lessonForm.sectionTitle.trim()) {
+      showError("Validation Error", "Vui lòng nhập tên section");
+      return;
+    }
+
+    if (!lessonForm.title.trim()) {
+      showError("Validation Error", "Vui lòng nhập tên bài học");
+      return;
+    }
+
+    if (lessonForm.type === "VIDEO" && !lessonForm.videoUrl.trim()) {
+      showError("Validation Error", "Bài học VIDEO cần video URL");
+      return;
+    }
+
+    setIsLessonSubmitting(true);
+    try {
+      const payload = buildLessonPayload();
+
+      if (editingLessonId) {
+        await updateLessonService(
+          lessonManagerCourse.id,
+          editingLessonId,
+          payload,
+        );
+        showSuccess("Update Lesson Success", "Đã cập nhật bài học thành công");
+      } else {
+        await createLessonService(lessonManagerCourse.id, payload);
+        showSuccess("Create Lesson Success", "Đã tạo bài học mới thành công");
+      }
+
+      resetLessonForm();
+      await reloadLessonManager();
+      await loadCatalog();
+    } catch (error) {
+      showError(
+        editingLessonId ? "Update Lesson Failed" : "Create Lesson Failed",
+        normalizeErrorMessage(error, "Không thể lưu bài học"),
+      );
+    } finally {
+      setIsLessonSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <section className="rounded-xl border border-[#23263a] bg-[#151925] p-5">
@@ -290,6 +479,13 @@ const CourseManagementPage = () => {
                           </button>
                           <button
                             type="button"
+                            onClick={() => openLessonManager(course)}
+                            className="rounded-md bg-violet-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-violet-500"
+                          >
+                            Bài học
+                          </button>
+                          <button
+                            type="button"
                             onClick={() =>
                               handleDelete(course.id, course.title)
                             }
@@ -306,6 +502,216 @@ const CourseManagementPage = () => {
             </div>
           )}
         </div>
+
+        {lessonManagerCourse && (
+          <section className="rounded-xl border border-[#23263a] bg-[#151925] p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-slate-100">
+                Quản lý bài học: {lessonManagerCourse.title}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setLessonManagerCourse(null)}
+                className="rounded-lg border border-[#2f3652] px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-[#23263a]"
+              >
+                Đóng panel bài học
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleLessonSubmit}
+              className="space-y-3 rounded-lg border border-[#23263a] bg-[#0f1320] p-4"
+            >
+              <h3 className="text-sm font-semibold text-slate-100">
+                {editingLessonId ? "Cập nhật bài học" : "Tạo bài học mới"}
+              </h3>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <input
+                  name="sectionTitle"
+                  value={lessonForm.sectionTitle}
+                  onChange={handleLessonInputChange}
+                  placeholder="Tên section"
+                  className="rounded-lg border border-[#2f3652] bg-[#151925] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+                <input
+                  name="sectionOrder"
+                  type="number"
+                  value={lessonForm.sectionOrder}
+                  onChange={handleLessonInputChange}
+                  placeholder="Section order (tuỳ chọn)"
+                  className="rounded-lg border border-[#2f3652] bg-[#151925] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+                <input
+                  name="title"
+                  value={lessonForm.title}
+                  onChange={handleLessonInputChange}
+                  placeholder="Tên bài học"
+                  className="rounded-lg border border-[#2f3652] bg-[#151925] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+                <input
+                  name="slug"
+                  value={lessonForm.slug}
+                  onChange={handleLessonInputChange}
+                  placeholder="Slug (tuỳ chọn)"
+                  className="rounded-lg border border-[#2f3652] bg-[#151925] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+                <select
+                  name="type"
+                  value={lessonForm.type}
+                  onChange={handleLessonInputChange}
+                  className="rounded-lg border border-[#2f3652] bg-[#151925] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                >
+                  <option value="TEXT">TEXT</option>
+                  <option value="VIDEO">VIDEO</option>
+                </select>
+                <input
+                  name="duration"
+                  type="number"
+                  value={lessonForm.duration}
+                  onChange={handleLessonInputChange}
+                  placeholder="Duration (giây)"
+                  className="rounded-lg border border-[#2f3652] bg-[#151925] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+                <input
+                  name="order"
+                  type="number"
+                  value={lessonForm.order}
+                  onChange={handleLessonInputChange}
+                  placeholder="Lesson order (tuỳ chọn)"
+                  className="rounded-lg border border-[#2f3652] bg-[#151925] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+                {lessonForm.type === "VIDEO" && (
+                  <input
+                    name="videoUrl"
+                    value={lessonForm.videoUrl}
+                    onChange={handleLessonInputChange}
+                    placeholder="Video URL"
+                    className="rounded-lg border border-[#2f3652] bg-[#151925] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                  />
+                )}
+              </div>
+
+              {lessonForm.type === "TEXT" && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-300">
+                    Nội dung bài học
+                  </p>
+                  <RichTextEditor
+                    value={lessonForm.content}
+                    onChange={(html) =>
+                      setLessonForm((prev) => ({
+                        ...prev,
+                        content: html,
+                      }))
+                    }
+                    placeholder="Viết nội dung bài học tại đây..."
+                  />
+                </div>
+              )}
+
+              <label className="inline-flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  name="isPublished"
+                  checked={lessonForm.isPublished}
+                  onChange={handleLessonInputChange}
+                />
+                Publish bài học
+              </label>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isLessonSubmitting}
+                  className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-60"
+                >
+                  {isLessonSubmitting
+                    ? "Đang lưu..."
+                    : editingLessonId
+                      ? "Cập nhật bài học"
+                      : "Tạo bài học"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetLessonForm}
+                  className="rounded-lg border border-[#2f3652] px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-[#23263a]"
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-4 space-y-3">
+              {isLessonLoading ? (
+                <div className="rounded-lg border border-dashed border-[#2f3652] p-6 text-center text-sm text-slate-400">
+                  Đang tải danh sách bài học...
+                </div>
+              ) : lessonSections.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-[#2f3652] p-6 text-center text-sm text-slate-400">
+                  Chưa có section hoặc bài học nào.
+                </div>
+              ) : (
+                lessonSections.map((section) => (
+                  <div
+                    key={section.id}
+                    className="rounded-lg border border-[#23263a] bg-[#0f1320] p-4"
+                  >
+                    <h4 className="text-sm font-semibold text-slate-100">
+                      Section {section.order}: {section.title}
+                    </h4>
+
+                    <div className="mt-3 space-y-3">
+                      {(section.lessons || []).map((lesson) => (
+                        <div
+                          key={lesson.id}
+                          className="rounded-lg border border-[#23263a] bg-[#151925] p-3"
+                        >
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-slate-100">
+                              {lesson.order}. {lesson.title}
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleEditLesson(section, lesson)
+                                }
+                                className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500"
+                              >
+                                Sửa
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleDeleteLesson(lesson.id, lesson.title)
+                                }
+                                className="rounded-md bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-500"
+                              >
+                                Xoá
+                              </button>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-slate-400">
+                            {lesson.type} · {lesson.duration || 0}s ·{" "}
+                            {lesson.isPublished ? "Published" : "Draft"}
+                          </p>
+
+                          {lesson.type === "TEXT" && lesson.content ? (
+                            <div className="mt-2 rounded border border-[#2a2f45] bg-[#0f1320] p-2 text-slate-200">
+                              <HtmlRenderer htmlContent={lesson.content} />
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        )}
 
         {isFormOpen && (
           <form

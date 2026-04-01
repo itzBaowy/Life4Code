@@ -159,6 +159,11 @@ courseRouter.patch('/catalog/:courseId', protect, courseController.updateCourse)
  */
 courseRouter.delete('/catalog/:courseId', protect, courseController.deleteCourse);
 
+courseRouter.get('/catalog/:courseId/lessons', protect, courseController.getCourseLessons);
+courseRouter.post('/catalog/:courseId/lessons', protect, courseController.createLesson);
+courseRouter.patch('/catalog/:courseId/lessons/:lessonId', protect, courseController.updateLesson);
+courseRouter.delete('/catalog/:courseId/lessons/:lessonId', protect, courseController.deleteLesson);
+
 /**
  * @swagger
  * /api/course/my-courses:

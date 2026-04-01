@@ -317,6 +317,267 @@ export const courseService = {
         return { courseId };
     },
 
+    async getCourseLessons(req) {
+        ensureAdmin(req.user);
+
+        const { courseId } = req.params;
+        if (!isObjectId(courseId)) {
+            throw new BadRequestException('courseId không hợp lệ');
+        }
+
+        const course = await prisma.course.findUnique({
+            where: { id: courseId },
+            select: {
+                id: true,
+                title: true,
+                sections: {
+                    select: {
+                        id: true,
+                        title: true,
+                        order: true,
+                        lessons: {
+                            select: {
+                                id: true,
+                                title: true,
+                                slug: true,
+                                type: true,
+                                content: true,
+                                videoUrl: true,
+                                duration: true,
+                                order: true,
+                                isPublished: true,
+                                createdAt: true,
+                            },
+                            orderBy: { order: 'asc' },
+                        },
+                    },
+                    orderBy: { order: 'asc' },
+                },
+            },
+        });
+
+        if (!course) {
+            throw new NotFoundException('Không tìm thấy khóa học');
+        }
+
+        return course;
+    },
+
+    async createLesson(req) {
+        ensureAdmin(req.user);
+
+        const { courseId } = req.params;
+        if (!isObjectId(courseId)) {
+            throw new BadRequestException('courseId không hợp lệ');
+        }
+
+        const { sectionTitle, sectionOrder, title, slug, type, content, videoUrl, duration, order, isPublished } = req.body;
+
+        if (!title || !String(title).trim()) {
+            throw new BadRequestException('title không được để trống');
+        }
+
+        if (!sectionTitle || !String(sectionTitle).trim()) {
+            throw new BadRequestException('sectionTitle không được để trống');
+        }
+
+        const lessonType = String(type || 'TEXT').toUpperCase();
+        if (!['TEXT', 'VIDEO'].includes(lessonType)) {
+            throw new BadRequestException('type chỉ nhận TEXT hoặc VIDEO');
+        }
+
+        const course = await prisma.course.findUnique({ where: { id: courseId } });
+        if (!course) {
+            throw new NotFoundException('Không tìm thấy khóa học');
+        }
+
+        const sectionName = String(sectionTitle).trim();
+        let section = await prisma.section.findFirst({
+            where: {
+                courseId,
+                title: sectionName,
+            },
+        });
+
+        if (!section) {
+            const currentMaxOrderSection = await prisma.section.findFirst({
+                where: { courseId },
+                orderBy: { order: 'desc' },
+                select: { order: true },
+            });
+
+            section = await prisma.section.create({
+                data: {
+                    courseId,
+                    title: sectionName,
+                    order:
+                        sectionOrder !== undefined
+                            ? Number(sectionOrder)
+                            : Number((currentMaxOrderSection?.order || 0) + 1),
+                },
+            });
+        }
+
+        const nextSlug = normalizeSlug(slug || title);
+        if (!nextSlug) {
+            throw new BadRequestException('slug không hợp lệ');
+        }
+
+        const duplicated = await prisma.lesson.findUnique({ where: { slug: nextSlug } });
+        if (duplicated) {
+            throw new BadRequestException('slug bài học đã tồn tại');
+        }
+
+        const currentMaxOrderLesson = await prisma.lesson.findFirst({
+            where: { sectionId: section.id },
+            orderBy: { order: 'desc' },
+            select: { order: true },
+        });
+
+        return prisma.lesson.create({
+            data: {
+                title: String(title).trim(),
+                slug: nextSlug,
+                type: lessonType,
+                content: lessonType === 'TEXT' ? String(content || '') : null,
+                videoUrl: lessonType === 'VIDEO' ? String(videoUrl || '') : null,
+                duration: duration !== undefined ? Number(duration) : null,
+                order:
+                    order !== undefined
+                        ? Number(order)
+                        : Number((currentMaxOrderLesson?.order || 0) + 1),
+                isPublished: Boolean(isPublished),
+                sectionId: section.id,
+            },
+            include: {
+                section: {
+                    select: {
+                        id: true,
+                        title: true,
+                        courseId: true,
+                    },
+                },
+            },
+        });
+    },
+
+    async updateLesson(req) {
+        ensureAdmin(req.user);
+
+        const { courseId, lessonId } = req.params;
+
+        if (!isObjectId(courseId)) {
+            throw new BadRequestException('courseId không hợp lệ');
+        }
+
+        if (!isObjectId(lessonId)) {
+            throw new BadRequestException('lessonId không hợp lệ');
+        }
+
+        const existingLesson = await prisma.lesson.findUnique({
+            where: { id: lessonId },
+            include: {
+                section: {
+                    select: {
+                        courseId: true,
+                    },
+                },
+            },
+        });
+
+        if (!existingLesson || existingLesson.section.courseId !== courseId) {
+            throw new NotFoundException('Không tìm thấy bài học trong khóa học này');
+        }
+
+        const { title, slug, type, content, videoUrl, duration, order, isPublished } = req.body;
+        const data = {};
+
+        if (title !== undefined) data.title = String(title).trim();
+        if (duration !== undefined) data.duration = duration === null ? null : Number(duration);
+        if (order !== undefined) data.order = Number(order);
+        if (isPublished !== undefined) data.isPublished = Boolean(isPublished);
+
+        const nextType = type !== undefined ? String(type).toUpperCase() : existingLesson.type;
+        if (!['TEXT', 'VIDEO'].includes(nextType)) {
+            throw new BadRequestException('type chỉ nhận TEXT hoặc VIDEO');
+        }
+
+        data.type = nextType;
+        if (nextType === 'TEXT') {
+            if (content !== undefined) data.content = String(content || '');
+            if (videoUrl !== undefined) data.videoUrl = null;
+        }
+        if (nextType === 'VIDEO') {
+            if (videoUrl !== undefined) data.videoUrl = String(videoUrl || '');
+            if (content !== undefined) data.content = null;
+        }
+
+        if (slug !== undefined || title !== undefined) {
+            const nextSlug = normalizeSlug(slug || title || existingLesson.slug);
+            if (!nextSlug) {
+                throw new BadRequestException('slug không hợp lệ');
+            }
+
+            const duplicated = await prisma.lesson.findFirst({
+                where: {
+                    slug: nextSlug,
+                    NOT: { id: lessonId },
+                },
+            });
+            if (duplicated) {
+                throw new BadRequestException('slug bài học đã tồn tại');
+            }
+
+            data.slug = nextSlug;
+        }
+
+        return prisma.lesson.update({
+            where: { id: lessonId },
+            data,
+            include: {
+                section: {
+                    select: {
+                        id: true,
+                        title: true,
+                        courseId: true,
+                    },
+                },
+            },
+        });
+    },
+
+    async deleteLesson(req) {
+        ensureAdmin(req.user);
+
+        const { courseId, lessonId } = req.params;
+
+        if (!isObjectId(courseId)) {
+            throw new BadRequestException('courseId không hợp lệ');
+        }
+
+        if (!isObjectId(lessonId)) {
+            throw new BadRequestException('lessonId không hợp lệ');
+        }
+
+        const existingLesson = await prisma.lesson.findUnique({
+            where: { id: lessonId },
+            include: {
+                section: {
+                    select: {
+                        courseId: true,
+                    },
+                },
+            },
+        });
+
+        if (!existingLesson || existingLesson.section.courseId !== courseId) {
+            throw new NotFoundException('Không tìm thấy bài học trong khóa học này');
+        }
+
+        await prisma.lesson.delete({ where: { id: lessonId } });
+        return { lessonId };
+    },
+
     async updateLessonProgress(req) {
         const userId = req.user.id;
         const { lessonId } = req.params;
