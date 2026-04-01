@@ -16,6 +16,8 @@ import Layout from "../layouts/Layout";
 import UserLayout from "../layouts/UserLayout";
 import DynamicComponent from "./DynamicComponent";
 import { buildMenuByPermissions, menuConfig } from "../configs/menuConfig";
+import CourseDetailPage from "../pages/User/CourseDetailPage";
+import LessonDetailPage from "../pages/User/LessonDetailPage";
 
 export const PrivateRoute = ({ requiredMenuId, children }) => {
   const user = useUserStore((state) => state.user);
@@ -106,6 +108,22 @@ export const router = createBrowserRouter([
               </PrivateRoute>
             ),
           })),
+          {
+            path: "my-courses/:courseId",
+            element: (
+              <PrivateRoute requiredMenuId="my-courses">
+                <CourseDetailPage />
+              </PrivateRoute>
+            ),
+          },
+          {
+            path: "my-courses/:courseId/lessons/:lessonId",
+            element: (
+              <PrivateRoute requiredMenuId="my-courses">
+                <LessonDetailPage />
+              </PrivateRoute>
+            ),
+          },
         ],
       },
       {

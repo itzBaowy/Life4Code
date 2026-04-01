@@ -175,6 +175,31 @@ courseRouter.get('/my-courses', protect, courseController.getMyCourses);
 
 /**
  * @swagger
+ * /api/course/my-courses/{courseId}:
+ *   get:
+ *     summary: Lấy chi tiết khóa học user đang học (sections và lessons)
+ *     tags: [Course]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID khóa học
+ *     responses:
+ *       200:
+ *         description: Lấy chi tiết khóa học thành công
+ *       403:
+ *         description: User chưa enroll khóa học
+ *       404:
+ *         description: Không tìm thấy khóa học
+ */
+courseRouter.get('/my-courses/:courseId', protect, courseController.getMyCourseDetail);
+
+/**
+ * @swagger
  * /api/course/lessons/{lessonId}/progress:
  *   patch:
  *     summary: Cập nhật tiến độ hoàn thành của một bài học

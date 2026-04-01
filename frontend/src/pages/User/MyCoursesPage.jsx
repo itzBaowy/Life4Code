@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { getMyCoursesService } from "../../services/Course/CourseService";
+import { useCourseProgressStore } from "../../store/CourseProgressStore";
 
 const MyCoursesPage = () => {
+  const navigate = useNavigate();
+  const { role = "user" } = useParams();
+  const progressByCourseId = useCourseProgressStore(
+    (state) => state.progressByCourseId,
+  );
+  const syncCourseProgresses = useCourseProgressStore(
+    (state) => state.syncCourseProgresses,
+  );
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -14,7 +24,9 @@ const MyCoursesPage = () => {
       try {
         const response = await getMyCoursesService();
         const payload = response?.data?.data ?? response?.data?.content;
-        setCourses(Array.isArray(payload) ? payload : []);
+        const nextCourses = Array.isArray(payload) ? payload : [];
+        setCourses(nextCourses);
+        syncCourseProgresses(nextCourses);
       } catch (error) {
         setErrorMessage(
           error?.response?.data?.message ||
@@ -40,7 +52,7 @@ const MyCoursesPage = () => {
 
       {isLoading ? (
         <div className="rounded-xl border border-[#23263a] bg-[#151925] p-8 text-center text-slate-400">
-          Dang tai khoa hoc...
+          Đang tải khóa học...
         </div>
       ) : errorMessage ? (
         <div className="rounded-xl border border-red-700/40 bg-red-950/20 p-4 text-sm text-red-300">
@@ -48,13 +60,18 @@ const MyCoursesPage = () => {
         </div>
       ) : courses.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#2f3652] bg-[#151925] p-8 text-center text-slate-400">
-          Ban chua dang ky khoa hoc nao.
+          ạn chưa đăng ký khóa học nào.
         </div>
       ) : (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {courses.map((item) => {
-            const progress = Number(item?.progress || 0);
             const course = item?.course || {};
+            const syncedProgress = progressByCourseId[course.id];
+            const progress = Number(
+              syncedProgress === undefined
+                ? item?.progress || 0
+                : syncedProgress,
+            );
 
             return (
               <article
@@ -92,6 +109,14 @@ const MyCoursesPage = () => {
                     />
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate(`/${role}/my-courses/${course.id}`)}
+                  className="mt-4 w-full rounded-lg bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                >
+                  Vao hoc
+                </button>
               </article>
             );
           })}

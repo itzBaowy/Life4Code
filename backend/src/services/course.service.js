@@ -24,6 +24,81 @@ const normalizeSlug = (value) =>
         .replace(/-+/g, '-');
 
 export const courseService = {
+    async getMyCourseDetail(req) {
+        const userId = req.user.id;
+        const { courseId } = req.params;
+
+        if (!isObjectId(userId)) {
+            throw new BadRequestException('userId không hợp lệ');
+        }
+
+        if (!isObjectId(courseId)) {
+            throw new BadRequestException('courseId không hợp lệ');
+        }
+
+        const enrollment = await prisma.enrollment.findUnique({
+            where: {
+                userId_courseId: {
+                    userId,
+                    courseId,
+                },
+            },
+            select: {
+                id: true,
+                progress: true,
+                updatedAt: true,
+            },
+        });
+
+        if (!enrollment) {
+            throw new ForbiddenException('Bạn chưa đăng ký khóa học này');
+        }
+
+        const course = await prisma.course.findUnique({
+            where: { id: courseId },
+            select: {
+                id: true,
+                title: true,
+                slug: true,
+                description: true,
+                thumbnail: true,
+                sections: {
+                    select: {
+                        id: true,
+                        title: true,
+                        order: true,
+                        lessons: {
+                            where: { isPublished: true },
+                            select: {
+                                id: true,
+                                title: true,
+                                slug: true,
+                                type: true,
+                                content: true,
+                                videoUrl: true,
+                                duration: true,
+                                order: true,
+                            },
+                            orderBy: { order: 'asc' },
+                        },
+                    },
+                    orderBy: { order: 'asc' },
+                },
+            },
+        });
+
+        if (!course) {
+            throw new NotFoundException('Không tìm thấy khóa học');
+        }
+
+        return {
+            enrollmentId: enrollment.id,
+            progress: enrollment.progress,
+            updatedAt: enrollment.updatedAt,
+            course,
+        };
+    },
+
     async enrollCourse(req) {
         const userId = req.user.id;
         const { courseId } = req.params;
