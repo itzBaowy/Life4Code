@@ -1,4 +1,5 @@
 import prisma from '../prisma/connect.prisma.js';
+import { buildQueryPrisma } from '../common/helpers/build_query_prisma.js';
 import {
     BadRequestException,
     ForbiddenException,
@@ -8,12 +9,6 @@ import {
 const isObjectId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
 
 const isAdmin = (user) => String(user?.role?.name || '').toLowerCase() === 'admin';
-
-const ensureAdmin = (user) => {
-    if (!isAdmin(user)) {
-        throw new ForbiddenException('Bạn không có quyền thực hiện thao tác này');
-    }
-};
 
 const normalizeSlug = (value) =>
     String(value || '')
@@ -201,8 +196,28 @@ export const courseService = {
         }));
     },
 
-    async getCatalog() {
-        return prisma.course.findMany({
+    async getCatalog(req) {
+        const { page, pageSize, where, index } = buildQueryPrisma(req.query);
+
+        if (req.query.keyword) {
+            const keyword = String(req.query.keyword).trim();
+            if (keyword) {
+                where.OR = [
+                    { title: { contains: keyword, mode: 'insensitive' } },
+                    { slug: { contains: keyword, mode: 'insensitive' } },
+                    { description: { contains: keyword, mode: 'insensitive' } },
+                ];
+            }
+        }
+
+        if (req.query.isPublished !== undefined) {
+            where.isPublished = String(req.query.isPublished) === 'true';
+        }
+
+        const itemsPromise = prisma.course.findMany({
+            where,
+            skip: index,
+            take: pageSize,
             select: {
                 id: true,
                 title: true,
@@ -221,11 +236,21 @@ export const courseService = {
             },
             orderBy: { createdAt: 'desc' },
         });
+
+        const totalItemPromise = prisma.course.count({ where });
+
+        const [items, totalItem] = await Promise.all([itemsPromise, totalItemPromise]);
+
+        return {
+            page,
+            pageSize,
+            totalItem,
+            totalPage: Math.ceil(totalItem / pageSize),
+            items,
+        };
     },
 
     async createCourse(req) {
-        ensureAdmin(req.user);
-
         const { title, slug, description, thumbnail, isPublished } = req.body;
         if (!title || !String(title).trim()) {
             throw new BadRequestException('title không được để trống');
@@ -255,8 +280,6 @@ export const courseService = {
     },
 
     async updateCourse(req) {
-        ensureAdmin(req.user);
-
         const { courseId } = req.params;
         if (!isObjectId(courseId)) {
             throw new BadRequestException('courseId không hợp lệ');
@@ -301,8 +324,6 @@ export const courseService = {
     },
 
     async deleteCourse(req) {
-        ensureAdmin(req.user);
-
         const { courseId } = req.params;
         if (!isObjectId(courseId)) {
             throw new BadRequestException('courseId không hợp lệ');
@@ -318,8 +339,6 @@ export const courseService = {
     },
 
     async getCourseLessons(req) {
-        ensureAdmin(req.user);
-
         const { courseId } = req.params;
         if (!isObjectId(courseId)) {
             throw new BadRequestException('courseId không hợp lệ');
@@ -364,8 +383,6 @@ export const courseService = {
     },
 
     async getCourseSections(req) {
-        ensureAdmin(req.user);
-
         const { courseId } = req.params;
         if (!isObjectId(courseId)) {
             throw new BadRequestException('courseId không hợp lệ');
@@ -390,8 +407,6 @@ export const courseService = {
     },
 
     async createSection(req) {
-        ensureAdmin(req.user);
-
         const { courseId } = req.params;
         const { title, order } = req.body;
 
@@ -435,8 +450,6 @@ export const courseService = {
     },
 
     async updateSection(req) {
-        ensureAdmin(req.user);
-
         const { courseId, sectionId } = req.params;
         const { title, order } = req.body;
 
@@ -476,8 +489,6 @@ export const courseService = {
     },
 
     async deleteSection(req) {
-        ensureAdmin(req.user);
-
         const { courseId, sectionId } = req.params;
 
         if (!isObjectId(courseId)) {
@@ -498,8 +509,6 @@ export const courseService = {
     },
 
     async createLesson(req) {
-        ensureAdmin(req.user);
-
         const { courseId } = req.params;
         if (!isObjectId(courseId)) {
             throw new BadRequestException('courseId không hợp lệ');
@@ -574,8 +583,6 @@ export const courseService = {
     },
 
     async updateLesson(req) {
-        ensureAdmin(req.user);
-
         const { courseId, lessonId } = req.params;
 
         if (!isObjectId(courseId)) {
@@ -672,8 +679,6 @@ export const courseService = {
     },
 
     async deleteLesson(req) {
-        ensureAdmin(req.user);
-
         const { courseId, lessonId } = req.params;
 
         if (!isObjectId(courseId)) {

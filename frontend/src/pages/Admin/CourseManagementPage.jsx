@@ -56,7 +56,11 @@ const CourseManagementPage = () => {
     try {
       const response = await getCourseCatalogService();
       const payload = response?.data?.data ?? response?.data?.content;
-      const nextData = Array.isArray(payload) ? payload : [];
+      const nextData = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.items)
+          ? payload.items
+          : [];
 
       setCourses(nextData);
     } catch (error) {

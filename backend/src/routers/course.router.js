@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect } from '../common/middlewares/protect.middleware.js';
+import { checkRole } from '../common/middlewares/authorization.middleware.js';
 import { courseController } from '../controllers/course.controller.js';
 
 const courseRouter = express.Router();
@@ -90,7 +91,7 @@ courseRouter.get('/catalog', protect, courseController.getCatalog);
  *       403:
  *         description: Không có quyền admin
  */
-courseRouter.post('/catalog', protect, courseController.createCourse);
+courseRouter.post('/catalog', protect, checkRole(['Admin']), courseController.createCourse);
 
 /**
  * @swagger
@@ -132,7 +133,7 @@ courseRouter.post('/catalog', protect, courseController.createCourse);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-courseRouter.patch('/catalog/:courseId', protect, courseController.updateCourse);
+courseRouter.patch('/catalog/:courseId', protect, checkRole(['Admin']), courseController.updateCourse);
 
 /**
  * @swagger
@@ -157,17 +158,17 @@ courseRouter.patch('/catalog/:courseId', protect, courseController.updateCourse)
  *       404:
  *         description: Không tìm thấy khóa học
  */
-courseRouter.delete('/catalog/:courseId', protect, courseController.deleteCourse);
+courseRouter.delete('/catalog/:courseId', protect, checkRole(['Admin']), courseController.deleteCourse);
 
-courseRouter.get('/catalog/:courseId/sections', protect, courseController.getCourseSections);
-courseRouter.post('/catalog/:courseId/sections', protect, courseController.createSection);
-courseRouter.patch('/catalog/:courseId/sections/:sectionId', protect, courseController.updateSection);
-courseRouter.delete('/catalog/:courseId/sections/:sectionId', protect, courseController.deleteSection);
+courseRouter.get('/catalog/:courseId/sections', protect, checkRole(['Admin']), courseController.getCourseSections);
+courseRouter.post('/catalog/:courseId/sections', protect, checkRole(['Admin']), courseController.createSection);
+courseRouter.patch('/catalog/:courseId/sections/:sectionId', protect, checkRole(['Admin']), courseController.updateSection);
+courseRouter.delete('/catalog/:courseId/sections/:sectionId', protect, checkRole(['Admin']), courseController.deleteSection);
 
-courseRouter.get('/catalog/:courseId/lessons', protect, courseController.getCourseLessons);
-courseRouter.post('/catalog/:courseId/lessons', protect, courseController.createLesson);
-courseRouter.patch('/catalog/:courseId/lessons/:lessonId', protect, courseController.updateLesson);
-courseRouter.delete('/catalog/:courseId/lessons/:lessonId', protect, courseController.deleteLesson);
+courseRouter.get('/catalog/:courseId/lessons', protect, checkRole(['Admin']), courseController.getCourseLessons);
+courseRouter.post('/catalog/:courseId/lessons', protect, checkRole(['Admin']), courseController.createLesson);
+courseRouter.patch('/catalog/:courseId/lessons/:lessonId', protect, checkRole(['Admin']), courseController.updateLesson);
+courseRouter.delete('/catalog/:courseId/lessons/:lessonId', protect, checkRole(['Admin']), courseController.deleteLesson);
 
 /**
  * @swagger
