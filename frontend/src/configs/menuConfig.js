@@ -4,7 +4,7 @@ export const menuConfig = [
         items: [
             {
                 id: "dashboard",
-                label: "Dashboard",
+                label: "Tổng Quan",
                 path: "dashboard",
             },
         ],
