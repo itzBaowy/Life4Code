@@ -51,7 +51,7 @@ const Sidebar = () => {
   const menuItems = getMenuItems();
 
   return (
-    <aside className="sticky top-16 h-[calc(100vh-4rem)] w-64 border-r border-[#23263a] bg-[#151925] p-4">
+    <aside className="fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 overflow-y-auto border-r border-[#23263a] bg-[#151925] p-4">
       <div className="mb-6 px-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Menu

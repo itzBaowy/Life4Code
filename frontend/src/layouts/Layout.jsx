@@ -7,13 +7,11 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-[#0a0d16] text-slate-100">
       <Topbar />
-      <div className="flex min-h-[calc(100vh-4rem)]">
-        <Sidebar />
-        <div className="flex flex-1 flex-col bg-[#0a0d16]">
-          <main className="flex-1 p-4 md:p-6">
-            <Outlet />
-          </main>
-        </div>
+      <Sidebar />
+      <div className="md:ml-64">
+        <main className="min-h-screen bg-[#0a0d16] pt-20 px-4 pb-4 md:px-6 md:pb-6">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
