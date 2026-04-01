@@ -1,6 +1,19 @@
 import api from '../../configs/axiosConfig';
 
-export const getCourseCatalogService = () => api.get('/api/course/catalog');
+export const getCourseCatalogService = (params = {}) => {
+    const query = new URLSearchParams();
+
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params.keyword) query.set('keyword', String(params.keyword));
+    if (params.isPublished !== undefined && params.isPublished !== null) {
+        query.set('isPublished', String(params.isPublished));
+    }
+    if (params.filters) query.set('filters', JSON.stringify(params.filters));
+
+    const queryString = query.toString();
+    return api.get(`/api/course/catalog${queryString ? `?${queryString}` : ''}`);
+};
 
 export const getMyCoursesService = () => api.get('/api/course/my-courses');
 

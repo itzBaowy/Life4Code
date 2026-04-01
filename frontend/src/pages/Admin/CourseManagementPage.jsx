@@ -25,6 +25,25 @@ const normalizeErrorMessage = (error, fallbackMessage) => {
   );
 };
 
+const buildPageItems = (currentPage, totalPages) => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const items = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) items.push("...");
+  for (let value = start; value <= end; value += 1) {
+    items.push(value);
+  }
+  if (end < totalPages - 1) items.push("...");
+  items.push(totalPages);
+
+  return items;
+};
+
 const CourseManagementPage = () => {
   const navigate = useNavigate();
   const { role } = useParams();
@@ -33,28 +52,35 @@ const CourseManagementPage = () => {
   const [courses, setCourses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPage, setTotalPage] = useState(1);
+  const [totalItem, setTotalItem] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
+  const [keyword, setKeyword] = useState("");
 
   const [formData, setFormData] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
 
-  const filteredCourses = useMemo(() => {
-    const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return courses;
+  const pageItems = useMemo(
+    () => buildPageItems(page, Math.max(totalPage, 1)),
+    [page, totalPage],
+  );
 
-    return courses.filter((course) => {
-      const title = String(course?.title || "").toLowerCase();
-      const slug = String(course?.slug || "").toLowerCase();
-      return title.includes(keyword) || slug.includes(keyword);
-    });
-  }, [courses, searchTerm]);
+  const loadCatalog = async (options = {}) => {
+    const targetPage = options.page ?? page;
+    const targetPageSize = options.pageSize ?? pageSize;
+    const targetKeyword = options.keyword ?? keyword;
 
-  const loadCatalog = async () => {
     setIsLoading(true);
 
     try {
-      const response = await getCourseCatalogService();
+      const response = await getCourseCatalogService({
+        page: targetPage,
+        pageSize: targetPageSize,
+        keyword: targetKeyword || undefined,
+      });
       const payload = response?.data?.data ?? response?.data?.content;
       const nextData = Array.isArray(payload)
         ? payload
@@ -63,6 +89,13 @@ const CourseManagementPage = () => {
           : [];
 
       setCourses(nextData);
+      if (!Array.isArray(payload)) {
+        setTotalPage(Number(payload?.totalPage || 1));
+        setTotalItem(Number(payload?.totalItem || 0));
+      } else {
+        setTotalPage(1);
+        setTotalItem(nextData.length);
+      }
     } catch (error) {
       showError(
         "Load Courses Failed",
@@ -74,8 +107,21 @@ const CourseManagementPage = () => {
   };
 
   useEffect(() => {
-    loadCatalog();
-  }, []);
+    loadCatalog({ page, pageSize, keyword });
+  }, [page, pageSize]);
+
+  const handleSearch = async (event) => {
+    event.preventDefault();
+    const nextKeyword = searchTerm.trim();
+
+    setKeyword(nextKeyword);
+    setPage(1);
+    await loadCatalog({
+      page: 1,
+      pageSize,
+      keyword: nextKeyword,
+    });
+  };
 
   const resetForm = () => {
     setFormData(initialForm);
@@ -206,7 +252,10 @@ const CourseManagementPage = () => {
 
       <section className="space-y-6">
         <div className="rounded-xl border border-[#23263a] bg-[#151925] p-5">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <form
+            onSubmit={handleSearch}
+            className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          >
             <h2 className="text-lg font-semibold text-slate-100">
               Danh sách Khoá học
             </h2>
@@ -218,6 +267,12 @@ const CourseManagementPage = () => {
                 className="w-full rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-500 sm:w-72"
               />
               <button
+                type="submit"
+                className="rounded-lg border border-[#2f3652] px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-[#23263a]"
+              >
+                Tìm kiếm
+              </button>
+              <button
                 type="button"
                 onClick={openCreateForm}
                 className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
@@ -225,13 +280,13 @@ const CourseManagementPage = () => {
                 Tạo Khoá Học
               </button>
             </div>
-          </div>
+          </form>
 
           {isLoading ? (
             <div className="rounded-lg border border-dashed border-[#2f3652] p-8 text-center text-slate-400">
               Đang tải danh sách khóa học...
             </div>
-          ) : filteredCourses.length === 0 ? (
+          ) : courses.length === 0 ? (
             <div className="rounded-lg border border-dashed border-[#2f3652] p-8 text-center text-slate-400">
               Không có khóa học nào.
             </div>
@@ -249,7 +304,7 @@ const CourseManagementPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCourses.map((course) => (
+                  {courses.map((course) => (
                     <tr key={course.id} className="border-b border-[#1f2438]">
                       <td className="px-3 py-3">
                         <div className="font-medium text-slate-100">
@@ -326,6 +381,67 @@ const CourseManagementPage = () => {
               </table>
             </div>
           )}
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-slate-400">
+              Tổng {totalItem} khoá học • Trang {page}/{Math.max(totalPage, 1)}
+            </p>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setPage(1);
+                }}
+                className="rounded-md border border-[#2f3652] bg-[#0f1320] px-2 py-1 text-xs text-slate-100 outline-none"
+              >
+                <option value={3}>3</option>
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                className="rounded-md border border-[#2f3652] px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-[#23263a] disabled:opacity-50"
+              >
+                Truoc
+              </button>
+
+              {pageItems.map((item, index) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${index}`} className="px-1 text-xs text-slate-400">
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setPage(item)}
+                    className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                      page === item
+                        ? "bg-cyan-600 text-white"
+                        : "border border-[#2f3652] text-slate-200 hover:bg-[#23263a]"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+
+              <button
+                type="button"
+                disabled={page >= totalPage}
+                onClick={() => setPage((prev) => Math.min(totalPage, prev + 1))}
+                className="rounded-md border border-[#2f3652] px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-[#23263a] disabled:opacity-50"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
         </div>
 
         {isFormOpen && (

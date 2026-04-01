@@ -17,6 +17,25 @@ const normalizeErrorMessage = (error, fallbackMessage) =>
   error?.message ||
   fallbackMessage;
 
+const buildPageItems = (currentPage, totalPages) => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const items = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) items.push("...");
+  for (let value = start; value <= end; value += 1) {
+    items.push(value);
+  }
+  if (end < totalPages - 1) items.push("...");
+  items.push(totalPages);
+
+  return items;
+};
+
 const UserManagementPage = () => {
   const { showSuccess, showError } = useNotification();
 
@@ -35,6 +54,11 @@ const UserManagementPage = () => {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [editingRoleUserId, setEditingRoleUserId] = useState("");
   const [selectedRoleId, setSelectedRoleId] = useState("");
+
+  const pageItems = useMemo(
+    () => buildPageItems(page, Math.max(totalPage, 1)),
+    [page, totalPage],
+  );
 
   const roleOptions = useMemo(() => {
     return (Array.isArray(roles) ? roles : [])
@@ -379,6 +403,28 @@ const UserManagementPage = () => {
             >
               Truoc
             </button>
+
+            {pageItems.map((item, index) =>
+              item === "..." ? (
+                <span key={`ellipsis-${index}`} className="px-1 text-xs text-slate-400">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setPage(item)}
+                  className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                    page === item
+                      ? "bg-cyan-600 text-white"
+                      : "border border-[#2f3652] text-slate-200 hover:bg-[#23263a]"
+                  }`}
+                >
+                  {item}
+                </button>
+              ),
+            )}
+
             <button
               type="button"
               disabled={page >= totalPage}
