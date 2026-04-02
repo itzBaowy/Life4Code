@@ -56,7 +56,7 @@ model Course {
   // Quan hệ
   sections    Section[]    // Khóa học chia làm nhiều Chương
   enrollments Enrollment[] // Những ai đang học khóa này
-  transactions  Transaction[]
+  transactions Transaction[]
   
 
   
@@ -153,16 +153,17 @@ model Coupon {
 
 // lịch sử giao dịch
 model Transaction {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String   @db.ObjectId
-  courseId      String   @db.ObjectId
-  amount        Int      // Số tiền thực tế học viên đã thanh toán
-  status        String   @default("PENDING") // PENDING, SUCCESS, FAILED
-  paymentMethod String   // VNPAY, MOMO, STRIPE, BANK_TRANSFER
-  orderInfo     String?  // Thông tin mã đơn hàng từ cổng thanh toán
-  
-  users         Users    @relation(fields: [userId], references: [id])
-  course        Course   @relation(fields: [courseId], references: [id])
-  
-  createdAt     DateTime @default(now())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  courseId  String   @db.ObjectId
+  amount    Int
+  status    String   @default("PENDING")
+  provider  String
+  orderId   String   @unique
+
+  user      Users    @relation(fields: [userId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -57,8 +57,8 @@ export const paymentController = {
           courseId,
           amount: Math.trunc(normalizedAmount),
           status: "PENDING",
-          paymentMethod: "MOMO",
-          orderInfo: orderId,
+          provider: "MOMO",
+          orderId,
         },
       });
 
@@ -88,6 +88,46 @@ export const paymentController = {
       res.status(204).end();
     } catch (error) {
       next(error);
+    }
+  },
+
+  async momoResult(req, res) {
+    const frontendResultUrl =
+      process.env.FRONTEND_PAYMENT_RESULT_URL ||
+      "http://localhost:5173/payment/result";
+
+    const buildRedirect = (params = {}) => {
+      const url = new URL(frontendResultUrl);
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value) !== "") {
+          url.searchParams.set(key, String(value));
+        }
+      });
+      return url.toString();
+    };
+
+    try {
+      const result = await paymentService.verifyMomoReturn(req.query);
+
+      return res.redirect(
+        buildRedirect({
+          status: result.status,
+          courseId: result.courseId,
+          orderId: result.orderId,
+        }),
+      );
+    } catch (error) {
+      console.error("[MoMo][momoResult]", {
+        message: error?.message,
+        query: req.query,
+      });
+
+      return res.redirect(
+        buildRedirect({
+          status: "failed",
+          reason: "invalid_signature",
+        }),
+      );
     }
   },
 };

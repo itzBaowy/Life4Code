@@ -48,4 +48,19 @@ paymentRouter.post("/momo/create-url", protect, paymentController.createMomoUrl)
  */
 paymentRouter.post("/momo-ipn", paymentController.momoIpn);
 
+/**
+ * @swagger
+ * /api/payment/momo-result:
+ *   get:
+ *     summary: MoMo redirect callback (verify hash và chuyển hướng về frontend)
+ *     tags: [Payment]
+ *     responses:
+ *       302:
+ *         description: Redirect về trang kết quả thanh toán ở frontend
+ */
+paymentRouter.get("/momo-result", paymentController.momoResult);
+
+// Alias để tương thích nếu env cũ đang dùng /api/payment/result
+paymentRouter.get("/result", paymentController.momoResult);
+
 export default paymentRouter;

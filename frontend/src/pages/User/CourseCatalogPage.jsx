@@ -212,7 +212,7 @@ const CourseCatalogPage = () => {
             onClick={() => handleGoToCheckout(course)}
             className="w-full rounded-lg bg-[#A50064] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#8f0058]"
           >
-            Thanh toán ngay
+            Mua khoá học
           </button>
         ) : (
           <button
