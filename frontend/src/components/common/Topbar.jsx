@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import { useUserStore } from "../../store/UserStore";
+import { useNavigate } from "react-router-dom";
 
 const Topbar = () => {
+  const navigate = useNavigate();
   const user = useUserStore((state) => state.user);
   const clearUser = useUserStore((state) => state.clearUser);
   const [openProfile, setOpenProfile] = useState(false);
@@ -57,6 +59,12 @@ const Topbar = () => {
   const handleLogout = () => {
     clearUser();
     window.location.href = "/login";
+  };
+
+  const handleOpenProfile = () => {
+    const role = String(user?.role || "user").toLowerCase();
+    setOpenProfile(false);
+    navigate(`/${role}/profile`);
   };
 
   const markAllAsRead = () => {
@@ -140,7 +148,7 @@ const Topbar = () => {
               </div>
               <button
                 className="w-full px-4 py-2 text-left text-slate-200 hover:bg-[#23263a]"
-                onClick={() => alert("Hồ sơ cá nhân")}
+                onClick={handleOpenProfile}
               >
                 Hồ sơ cá nhân
               </button>

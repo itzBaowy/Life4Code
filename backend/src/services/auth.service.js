@@ -111,4 +111,58 @@ export const authService = {
         return req.user;
     },
 
+    async updateInfo(req) {
+        const userId = req.user?.id;
+        const { name, email, phoneNumber } = req.body;
+
+        if (!userId) {
+            throw new UnauthorizedException("Cannot identify current user");
+        }
+
+        const data = {};
+
+        if (name !== undefined) {
+            validateName(name);
+            data.name = String(name).trim();
+        }
+
+        if (phoneNumber !== undefined) {
+            validatePhoneNumber(phoneNumber);
+            data.phoneNumber = String(phoneNumber).trim();
+        }
+
+        if (email !== undefined) {
+            validateEmail(email);
+            const normalizedEmail = String(email).trim();
+
+            const existEmail = await prisma.users.findFirst({
+                where: {
+                    email: normalizedEmail,
+                    NOT: { id: userId },
+                },
+                select: { id: true },
+            });
+
+            if (existEmail) {
+                throw new BadRequestException("Email đã tồn tại");
+            }
+
+            data.email = normalizedEmail;
+        }
+
+        if (Object.keys(data).length === 0) {
+            throw new BadRequestException("No valid fields to update");
+        }
+
+        const updatedUser = await prisma.users.update({
+            where: { id: userId },
+            data,
+            include: { role: true },
+        });
+
+        delete updatedUser.password;
+
+        return updatedUser;
+    },
+
 };

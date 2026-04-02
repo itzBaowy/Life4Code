@@ -21,5 +21,10 @@ export const authController = {
         const result = await authService.getInfo(req);
         const response = responseSuccess(result, `Get user info successfully`);
         res.status(response.statusCode).json(response);
+    },
+    async updateInfo(req, res, next) {
+        const result = await authService.updateInfo(req);
+        const response = responseSuccess(result, `Update user info successfully`);
+        res.status(response.statusCode).json(response);
     }
 }

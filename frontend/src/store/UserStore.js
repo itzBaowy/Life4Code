@@ -10,12 +10,17 @@ export const useUserStore = create(
                 set({
                     user: {
                         id: userData.id,
+                        userName: userData.userName,
                         email: userData.email,
                         fullName: userData.fullName || userData.name,
                         name: userData.name || userData.fullName,
                         phoneNumber: userData.phoneNumber,
                         role: userData.role?.name || userData.role,
-                        permissions: userData.role?.permissions || userData.permissions || [],
+                        permissions:
+                            userData.role?.permissions ||
+                            userData.role?.permission ||
+                            userData.permissions ||
+                            [],
                         createdAt: userData.createdAt,
                     },
                 }),

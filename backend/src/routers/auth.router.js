@@ -115,4 +115,31 @@ authRouter.post("/refresh-token", authController.refreshToken)
  */
 authRouter.get('/info', protect, authController.getInfo);
 
+/**
+ * @swagger
+ * /api/auth/info:
+ *   patch:
+ *     summary: Cập nhật thông tin người dùng
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Cập nhật thông tin thành công
+ */
+authRouter.patch('/info', protect, authController.updateInfo);
+
 export default authRouter;

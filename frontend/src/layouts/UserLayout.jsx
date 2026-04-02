@@ -4,9 +4,9 @@ import Topbar from "../components/common/Topbar";
 
 const UserLayout = () => {
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#0a0d16] text-slate-100">
       <Topbar />
-      <section className="mx-auto max-w-5xl p-4 md:p-6">
+      <section className="mx-auto max-w-5xl px-4 pb-4 pt-20 md:px-6 md:pb-6">
         <Outlet />
       </section>
     </div>
