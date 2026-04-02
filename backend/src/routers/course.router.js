@@ -85,6 +85,12 @@ courseRouter.get('/catalog', protect, courseController.getCatalog);
  *               isPublished:
  *                 type: boolean
  *                 example: true
+ *               originalPrice:
+ *                 type: integer
+ *                 example: 1200000
+ *               discountPercent:
+ *                 type: number
+ *                 example: 20
  *     responses:
  *       201:
  *         description: Tạo khóa học thành công
@@ -125,6 +131,10 @@ courseRouter.post('/catalog', protect, checkRole(['Admin']), courseController.cr
  *                 type: string
  *               isPublished:
  *                 type: boolean
+ *               originalPrice:
+ *                 type: integer
+ *               discountPercent:
+ *                 type: number
  *     responses:
  *       200:
  *         description: Cập nhật khóa học thành công
@@ -224,6 +234,9 @@ courseRouter.get('/my-courses/:courseId', protect, courseController.getMyCourseD
  *         schema:
  *           type: string
  *         description: ID bài học
+ *     requestBody:
+ *      required: true
+ *    content:
  *     responses:
  *       200:
  *         description: Lấy chi tiết bài học thành công

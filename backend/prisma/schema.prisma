@@ -42,6 +42,11 @@ enum LessonType {
   VIDEO
 }
 
+enum CouponDiscountType {
+  PERCENT
+  FIXED
+}
+
 model Course {
   id          String       @id @default(auto()) @map("_id") @db.ObjectId
   title       String
@@ -142,7 +147,8 @@ model LessonProgress {
 model Coupon {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   code          String   @unique // Ví dụ: TET2026
-  discount      Int      // % giảm hoặc số tiền giảm (tùy logic)
+  discountType  CouponDiscountType? @default(PERCENT)
+  discount      Int      // Giá trị giảm theo discountType (PERCENT: %, FIXED: VND)
   maxUsage      Int      // Giới hạn số lượt dùng (VD: 100 lượt)
   usedCount     Int      @default(0) // Đã dùng bao nhiêu lượt
   validFrom     DateTime // Ngày bắt đầu

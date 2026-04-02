@@ -13,7 +13,7 @@ export const paymentController = {
   async createMomoUrl(req, res, next) {
     try {
       const userId = req.user?.id;
-      const { courseId } = req.body || {};
+      const { courseId, couponCode } = req.body || {};
 
       if (!userId || !isObjectId(userId)) {
         throw new BadRequestException("Invalid user");
@@ -47,6 +47,23 @@ export const paymentController = {
         throw new BadRequestException("Khóa học này không yêu cầu thanh toán qua MoMo");
       }
 
+      const couponResult = couponCode
+        ? await paymentService.validateCoupon({
+            couponCode,
+            coursePrice: normalizedAmount,
+          })
+        : {
+            couponCode: "",
+            discountPercent: 0,
+            discountAmount: 0,
+            finalAmount: normalizedAmount,
+          };
+
+      const finalAmount = Number(couponResult.finalAmount || normalizedAmount);
+      if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
+        throw new BadRequestException("Giá sau giảm không hợp lệ để tạo thanh toán MoMo");
+      }
+
       const orderId = `L4C-MOMO-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
       const requestId = `L4C-REQ-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
       const orderInfo = `Thanh toan khoa hoc ${course.title}`;
@@ -55,7 +72,7 @@ export const paymentController = {
         data: {
           userId,
           courseId,
-          amount: Math.trunc(normalizedAmount),
+          amount: Math.trunc(finalAmount),
           status: "PENDING",
           provider: "MOMO",
           orderId,
@@ -66,16 +83,111 @@ export const paymentController = {
       req.momoRequestId = requestId;
       req.momoOrderInfo = orderInfo;
       req.momoExtraData = Buffer.from(
-        JSON.stringify({ userId, courseId, orderId }),
+        JSON.stringify({
+          userId,
+          courseId,
+          orderId,
+          couponCode: couponResult.couponCode,
+        }),
       ).toString("base64");
 
       const result = await paymentService.createMomoPayment(
         req,
         courseId,
-        Math.trunc(normalizedAmount),
+        Math.trunc(finalAmount),
       );
 
-      const response = responseSuccess(result, "Create MoMo payment URL successfully");
+      const response = responseSuccess(
+        {
+          ...result,
+          amount: Math.trunc(finalAmount),
+          originalAmount: Math.trunc(normalizedAmount),
+          discountAmount: Number(couponResult.discountAmount || 0),
+          couponCode: couponResult.couponCode,
+        },
+        "Create MoMo payment URL successfully",
+      );
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async validateCoupon(req, res, next) {
+    try {
+      const { couponCode, courseId } = req.body || {};
+
+      if (!isObjectId(courseId)) {
+        throw new BadRequestException("courseId không hợp lệ");
+      }
+
+      const course = await prisma.course.findUnique({
+        where: { id: courseId },
+        select: { id: true, price: true },
+      });
+
+      if (!course) {
+        throw new NotFoundException("Không tìm thấy khóa học");
+      }
+
+      const result = await paymentService.validateCoupon({
+        couponCode,
+        coursePrice: Number(course.price || 0),
+      });
+
+      const response = responseSuccess(result, "Validate coupon successfully");
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getCoupons(req, res, next) {
+    try {
+      const result = await paymentService.getCoupons(req.query);
+      const response = responseSuccess(result, "Get coupons successfully");
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async createCoupon(req, res, next) {
+    try {
+      const result = await paymentService.createCoupon(req.body || {});
+      const response = responseSuccess(result, "Create coupon successfully", 201);
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async updateCoupon(req, res, next) {
+    try {
+      const { couponId } = req.params;
+
+      if (!isObjectId(couponId)) {
+        throw new BadRequestException("couponId không hợp lệ");
+      }
+
+      const result = await paymentService.updateCoupon(couponId, req.body || {});
+      const response = responseSuccess(result, "Update coupon successfully");
+      res.status(response.statusCode).json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async deleteCoupon(req, res, next) {
+    try {
+      const { couponId } = req.params;
+
+      if (!isObjectId(couponId)) {
+        throw new BadRequestException("couponId không hợp lệ");
+      }
+
+      const result = await paymentService.deleteCoupon(couponId);
+      const response = responseSuccess(result, "Delete coupon successfully");
       res.status(response.statusCode).json(response);
     } catch (error) {
       next(error);

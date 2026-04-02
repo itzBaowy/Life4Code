@@ -14,7 +14,7 @@ export const swaggerOptions = {
         servers: [
             mode === 'development'
                 ? { url: `http://localhost:${PORT}`, description: 'Development server' }
-                : { url: 'https://life4-code.vercel.app', description: 'Production server' }
+                : { url: 'https://life4code.onrender.com', description: 'Production server' }
         ],
         components: {
             securitySchemes: {

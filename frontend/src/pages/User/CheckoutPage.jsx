@@ -3,6 +3,7 @@ import { CreditCard, Wallet } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { getCourseCatalogService } from "../../services/Course/CourseService";
 import { createMomoPaymentUrlService } from "../../services/Payment/PaymentService";
+import { validateCouponService } from "../../services/Coupon/CouponService";
 import { useNotification } from "../../components/common/NotificationStack";
 
 const PAYMENT_METHODS = {
@@ -20,6 +21,9 @@ const CheckoutPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState(PAYMENT_METHODS.MOMO);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   useEffect(() => {
     if (course || !courseId) return;
@@ -48,6 +52,8 @@ const CheckoutPage = () => {
 
   const price = Number(course?.price || 0);
   const originalPrice = Number(course?.originalPrice || 0);
+  const discountAmount = Number(appliedCoupon?.discountAmount || 0);
+  const finalAmount = Math.max(0, price - discountAmount);
 
   const formattedPrice = useMemo(
     () =>
@@ -66,6 +72,56 @@ const CheckoutPage = () => {
     }).format(originalPrice);
   }, [originalPrice, price]);
 
+  const formattedDiscountAmount = useMemo(() => {
+    if (!discountAmount) return "";
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(discountAmount);
+  }, [discountAmount]);
+
+  const formattedFinalAmount = useMemo(() => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(finalAmount);
+  }, [finalAmount]);
+
+  const handleApplyCoupon = async () => {
+    if (!courseId) {
+      showError("Thông báo", "Thiếu thông tin khóa học.");
+      return;
+    }
+
+    const code = String(couponCodeInput || "").trim().toUpperCase();
+    if (!code) {
+      showError("Thông báo", "Vui lòng nhập mã giảm giá.");
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+    try {
+      const response = await validateCouponService({
+        couponCode: code,
+        courseId,
+      });
+      const payload = response?.data?.data ?? response?.data?.content;
+
+      setAppliedCoupon({
+        couponCode: payload?.couponCode || code,
+        discountType: String(payload?.discountType || "PERCENT").toUpperCase(),
+        discountValue: Number(payload?.discountValue || 0),
+        discountPercent: Number(payload?.discountPercent || 0),
+        discountAmount: Number(payload?.discountAmount || 0),
+      });
+    } catch (error) {
+      setAppliedCoupon(null);
+      showError("Thông báo", error?.response?.data?.message || "Không thể áp dụng mã giảm giá.");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!courseId) {
       showError("Thiếu thông tin khóa học.");
@@ -79,7 +135,10 @@ const CheckoutPage = () => {
 
     setIsProcessing(true);
     try {
-      const response = await createMomoPaymentUrlService(courseId);
+      const response = await createMomoPaymentUrlService(
+        courseId,
+        appliedCoupon?.couponCode,
+      );
       const payUrl = response?.data?.data?.payUrl || response?.data?.content?.payUrl;
 
       if (!payUrl) {
@@ -150,6 +209,47 @@ const CheckoutPage = () => {
                 {formattedOriginalPrice ? (
                   <span className="text-sm text-slate-500 line-through">{formattedOriginalPrice}</span>
                 ) : null}
+              </div>
+
+              <div className="mt-3 rounded-lg border border-[#2f3652] bg-[#0b101c] p-3">
+                <p className="text-xs text-slate-400">Mã giảm giá</p>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                    placeholder="Nhập mã coupon"
+                    className="flex-1 rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={isApplyingCoupon}
+                    className="rounded-lg border border-[#2f3652] px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-[#23263a] disabled:opacity-60"
+                  >
+                    {isApplyingCoupon ? "Đang áp..." : "Áp dụng"}
+                  </button>
+                </div>
+
+                {appliedCoupon?.couponCode ? (
+                  <div className="mt-2 text-xs text-emerald-300">
+                    Đã áp dụng {appliedCoupon.couponCode} (
+                    {appliedCoupon.discountType === "FIXED"
+                      ? `-${Number(appliedCoupon.discountValue || 0).toLocaleString("vi-VN")} VND`
+                      : `-${appliedCoupon.discountPercent}%`}
+                    )
+                  </div>
+                ) : null}
+
+                {discountAmount > 0 ? (
+                  <div className="mt-2 text-xs text-slate-300">
+                    Giảm thêm: <span className="font-semibold text-emerald-300">-{formattedDiscountAmount}</span>
+                  </div>
+                ) : null}
+
+                <div className="mt-2 text-sm text-slate-200">
+                  Cần thanh toán: <span className="font-semibold text-cyan-300">{formattedFinalAmount}</span>
+                </div>
               </div>
             </div>
           </div>

@@ -13,7 +13,21 @@ const initialForm = {
   slug: "",
   description: "",
   thumbnail: "",
+  originalPrice: "",
+  discountPercent: "",
   isPublished: false,
+};
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(Number(value || 0));
+
+const toNumberOrZero = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return parsed;
 };
 
 const normalizeErrorMessage = (error, fallbackMessage) => {
@@ -62,6 +76,19 @@ const CourseManagementPage = () => {
   const [formData, setFormData] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+
+  const pricingPreview = useMemo(() => {
+    const original = toNumberOrZero(formData.originalPrice);
+    const discountRaw = toNumberOrZero(formData.discountPercent);
+    const discount = Math.min(100, discountRaw);
+    const finalPrice = Math.round(original * (100 - discount) / 100);
+
+    return {
+      original,
+      discount,
+      finalPrice,
+    };
+  }, [formData.originalPrice, formData.discountPercent]);
 
   const pageItems = useMemo(
     () => buildPageItems(page, Math.max(totalPage, 1)),
@@ -144,6 +171,12 @@ const CourseManagementPage = () => {
   };
 
   const handleEdit = (course) => {
+    const original = Number(course.originalPrice || course.price || 0);
+    const discount =
+      original > 0
+        ? Math.round((1 - Number(course.price || 0) / original) * 100)
+        : 0;
+
     setEditingId(course.id);
     setIsFormOpen(true);
     setFormData({
@@ -151,6 +184,8 @@ const CourseManagementPage = () => {
       slug: course.slug || "",
       description: course.description || "",
       thumbnail: course.thumbnail || "",
+      originalPrice: original > 0 ? String(original) : "",
+      discountPercent: discount > 0 ? String(discount) : "",
       isPublished: Boolean(course.isPublished),
     });
   };
@@ -188,6 +223,12 @@ const CourseManagementPage = () => {
       payload.description = formData.description.trim();
     if (formData.thumbnail.trim())
       payload.thumbnail = formData.thumbnail.trim();
+    if (String(formData.originalPrice).trim()) {
+      payload.originalPrice = Number(formData.originalPrice);
+    }
+    if (String(formData.discountPercent).trim()) {
+      payload.discountPercent = Number(formData.discountPercent);
+    }
 
     return payload;
   };
@@ -299,6 +340,7 @@ const CourseManagementPage = () => {
                     <th className="px-3 py-3">Slug</th>
                     <th className="px-3 py-3">Sections</th>
                     <th className="px-3 py-3">Enrollments</th>
+                    <th className="px-3 py-3">Giá</th>
                     <th className="px-3 py-3">Trang Thái</th>
                     <th className="px-3 py-3 text-right">Hành Động</th>
                   </tr>
@@ -322,6 +364,25 @@ const CourseManagementPage = () => {
                       </td>
                       <td className="px-3 py-3 text-slate-300">
                         {course?._count?.enrollments || 0}
+                      </td>
+                      <td className="px-3 py-3 text-slate-300">
+                        {Number(course.price || 0) > 0 ? (
+                          <div className="space-y-1">
+                            <div className="font-semibold text-cyan-300">
+                              {formatCurrency(course.price)}
+                            </div>
+                            {Number(course.originalPrice || 0) >
+                            Number(course.price || 0) ? (
+                              <div className="text-xs text-slate-400 line-through">
+                                {formatCurrency(course.originalPrice)}
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="rounded-full bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300">
+                            Miễn phí
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         <span
@@ -508,6 +569,49 @@ const CourseManagementPage = () => {
                   placeholder="Nhập mô tả khóa học"
                   className="w-full rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-slate-100 outline-none transition focus:border-cyan-500"
                 />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-300">
+                    Giá gốc (VND)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    name="originalPrice"
+                    value={formData.originalPrice}
+                    onChange={handleChange}
+                    placeholder="VD: 1200000"
+                    className="w-full rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-slate-100 outline-none transition focus:border-cyan-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-300">
+                    Khuyến mãi (%) - optional
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    name="discountPercent"
+                    value={formData.discountPercent}
+                    onChange={handleChange}
+                    placeholder="VD: 20"
+                    className="w-full rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-slate-100 outline-none transition focus:border-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[#2f3652] bg-[#0f1320] p-3 text-sm">
+                <p className="text-slate-400">Giá sau khi tính khuyến mãi</p>
+                <p className="mt-1 text-lg font-semibold text-cyan-300">
+                  {formatCurrency(pricingPreview.finalPrice)}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Giá gốc {formatCurrency(pricingPreview.original)} · Giảm {pricingPreview.discount}%
+                </p>
               </div>
 
               <label className="mt-1 inline-flex items-center gap-2 text-sm text-slate-300">

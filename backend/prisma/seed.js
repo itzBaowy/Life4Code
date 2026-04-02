@@ -8,7 +8,7 @@ const rolesSeed = [
   {
     name: "Admin",
     description: "Quản trị hệ thống",
-    permission: ["dashboard", "course-management", "user-management"],
+    permission: ["dashboard", "course-management", "user-management", "coupon-management"],
   },
   {
     name: "User",

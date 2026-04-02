@@ -21,6 +21,12 @@ export const menuConfig = [
                 roles: ["admin"],
             },
             {
+                id: "coupon-management",
+                label: "Quản lý mã giảm giá",
+                path: "coupons",
+                roles: ["admin"],
+            },
+            {
                 id: "course-catalog",
                 label: "Khám phá khoá học",
                 path: "catalog",

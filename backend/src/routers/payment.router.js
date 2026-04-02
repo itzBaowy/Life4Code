@@ -1,6 +1,7 @@
 import express from "express";
 import { paymentController } from "../controllers/payment.controller.js";
 import { protect } from "../common/middlewares/protect.middleware.js";
+import { checkRole } from "../common/middlewares/authorization.middleware.js";
 
 const paymentRouter = express.Router();
 
@@ -35,6 +36,12 @@ const paymentRouter = express.Router();
  *         description: Tạo payUrl thành công
  */
 paymentRouter.post("/momo/create-url", protect, paymentController.createMomoUrl);
+paymentRouter.post("/coupon/validate", protect, paymentController.validateCoupon);
+
+paymentRouter.get("/coupon", protect, checkRole(["Admin"]), paymentController.getCoupons);
+paymentRouter.post("/coupon", protect, checkRole(["Admin"]), paymentController.createCoupon);
+paymentRouter.patch("/coupon/:couponId", protect, checkRole(["Admin"]), paymentController.updateCoupon);
+paymentRouter.delete("/coupon/:couponId", protect, checkRole(["Admin"]), paymentController.deleteCoupon);
 
 /**
  * @swagger

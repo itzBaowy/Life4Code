@@ -20,6 +20,99 @@ const parseExtraData = (extraData) => {
   }
 };
 
+const normalizeCouponCode = (value) =>
+  String(value || "").trim().toUpperCase();
+
+const normalizeCouponDiscountType = (value) => {
+  const normalized = String(value || "PERCENT").trim().toUpperCase();
+  return normalized === "FIXED" ? "FIXED" : "PERCENT";
+};
+
+const validateCouponInput = ({ code, discountType, discount, maxUsage, validFrom, validTo }) => {
+  const normalizedCode = normalizeCouponCode(code);
+  if (!normalizedCode) {
+    throw new BadRequestException("code không được để trống");
+  }
+
+  const normalizedDiscountType = normalizeCouponDiscountType(discountType);
+
+  const parsedDiscount = Number(discount);
+  if (!Number.isInteger(parsedDiscount) || parsedDiscount <= 0) {
+    throw new BadRequestException("discount phải là số nguyên dương");
+  }
+
+  if (normalizedDiscountType === "PERCENT" && parsedDiscount > 100) {
+    throw new BadRequestException("discount phải từ 1 đến 100 với kiểu PERCENT");
+  }
+
+  const parsedMaxUsage = Number(maxUsage);
+  if (!Number.isInteger(parsedMaxUsage) || parsedMaxUsage <= 0) {
+    throw new BadRequestException("maxUsage phải là số nguyên dương");
+  }
+
+  const from = new Date(validFrom);
+  const to = new Date(validTo);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    throw new BadRequestException("validFrom/validTo không hợp lệ");
+  }
+  if (to <= from) {
+    throw new BadRequestException("validTo phải lớn hơn validFrom");
+  }
+
+  return {
+    code: normalizedCode,
+    discountType: normalizedDiscountType,
+    discount: parsedDiscount,
+    maxUsage: parsedMaxUsage,
+    validFrom: from,
+    validTo: to,
+  };
+};
+
+const getCouponDiscountAmount = (coursePrice, coupon) => {
+  const price = Number(coursePrice || 0);
+  const discount = Number(coupon?.discount || 0);
+  if (price <= 0 || discount <= 0) return 0;
+
+  const discountType = normalizeCouponDiscountType(coupon?.discountType);
+  if (discountType === "FIXED") {
+    return Math.min(price, discount);
+  }
+
+  return Math.round(price * discount / 100);
+};
+
+const getValidCouponForCheckout = async ({ couponCode, coursePrice }) => {
+  const code = normalizeCouponCode(couponCode);
+  if (!code) return null;
+
+  const coupon = await prisma.coupon.findUnique({
+    where: { code },
+  });
+
+  if (!coupon) {
+    throw new BadRequestException("Mã giảm giá không tồn tại");
+  }
+
+  const now = new Date();
+  if (!coupon.isActive) {
+    throw new BadRequestException("Mã giảm giá đã bị vô hiệu hóa");
+  }
+  if (now < coupon.validFrom || now > coupon.validTo) {
+    throw new BadRequestException("Mã giảm giá đã hết hạn hoặc chưa đến thời gian sử dụng");
+  }
+  if (coupon.usedCount >= coupon.maxUsage) {
+    throw new BadRequestException("Mã giảm giá đã hết lượt sử dụng");
+  }
+
+  const discountAmount = getCouponDiscountAmount(coursePrice, coupon);
+  return {
+    coupon,
+    discountAmount,
+    finalAmount: Math.max(0, Number(coursePrice || 0) - discountAmount),
+  };
+};
+
 const verifyMomoSignature = (payload, accessKey, secretKey) => {
   const incomingSignature = String(payload?.signature || "");
   if (!incomingSignature) {
@@ -87,6 +180,7 @@ const resolveTransactionByPayload = async (payload) => {
 
 const applyMomoPaymentResult = async (payload) => {
   const transaction = await resolveTransactionByPayload(payload);
+  const parsedExtra = parseExtraData(payload.extraData);
   const resultCode = Number(payload.resultCode);
   const isSuccess = resultCode === 0;
 
@@ -115,6 +209,23 @@ const applyMomoPaymentResult = async (payload) => {
       },
       update: {},
     });
+
+    const couponCode = normalizeCouponCode(parsedExtra?.couponCode);
+    if (couponCode) {
+      const coupon = await prisma.coupon.findUnique({
+        where: { code: couponCode },
+        select: { id: true, usedCount: true, maxUsage: true },
+      });
+
+      if (coupon && coupon.usedCount < coupon.maxUsage) {
+        await prisma.coupon.update({
+          where: { id: coupon.id },
+          data: {
+            usedCount: { increment: 1 },
+          },
+        });
+      }
+    }
   } else if (transaction.status !== "FAILED") {
     await prisma.transaction.update({
       where: { id: transaction.id },
@@ -133,6 +244,144 @@ const applyMomoPaymentResult = async (payload) => {
 };
 
 export const paymentService = {
+  async createCoupon(payload) {
+    const normalized = validateCouponInput(payload || {});
+
+    const existed = await prisma.coupon.findUnique({
+      where: { code: normalized.code },
+      select: { id: true },
+    });
+
+    if (existed) {
+      throw new BadRequestException("code đã tồn tại");
+    }
+
+    return prisma.coupon.create({
+      data: {
+        ...normalized,
+        isActive: payload?.isActive !== undefined ? Boolean(payload.isActive) : true,
+      },
+    });
+  },
+
+  async updateCoupon(couponId, payload) {
+    const existed = await prisma.coupon.findUnique({ where: { id: couponId } });
+    if (!existed) {
+      throw new NotFoundException("Không tìm thấy mã giảm giá");
+    }
+
+    const data = {};
+    if (payload.code !== undefined) data.code = normalizeCouponCode(payload.code);
+    if (payload.discountType !== undefined) {
+      data.discountType = normalizeCouponDiscountType(payload.discountType);
+    }
+    if (payload.discount !== undefined) {
+      const discount = Number(payload.discount);
+      const discountType = normalizeCouponDiscountType(data.discountType || existed.discountType);
+      if (!Number.isInteger(discount) || discount <= 0) {
+        throw new BadRequestException("discount phải là số nguyên dương");
+      }
+      if (discountType === "PERCENT" && discount > 100) {
+        throw new BadRequestException("discount phải từ 1 đến 100 với kiểu PERCENT");
+      }
+      data.discount = discount;
+    }
+    if (payload.maxUsage !== undefined) {
+      const maxUsage = Number(payload.maxUsage);
+      if (!Number.isInteger(maxUsage) || maxUsage <= 0) {
+        throw new BadRequestException("maxUsage phải là số nguyên dương");
+      }
+      data.maxUsage = maxUsage;
+    }
+    if (payload.validFrom !== undefined) {
+      const validFrom = new Date(payload.validFrom);
+      if (Number.isNaN(validFrom.getTime())) {
+        throw new BadRequestException("validFrom không hợp lệ");
+      }
+      data.validFrom = validFrom;
+    }
+    if (payload.validTo !== undefined) {
+      const validTo = new Date(payload.validTo);
+      if (Number.isNaN(validTo.getTime())) {
+        throw new BadRequestException("validTo không hợp lệ");
+      }
+      data.validTo = validTo;
+    }
+    if (payload.isActive !== undefined) {
+      data.isActive = Boolean(payload.isActive);
+    }
+
+    const nextValidFrom = data.validFrom || existed.validFrom;
+    const nextValidTo = data.validTo || existed.validTo;
+    if (nextValidTo <= nextValidFrom) {
+      throw new BadRequestException("validTo phải lớn hơn validFrom");
+    }
+
+    return prisma.coupon.update({
+      where: { id: couponId },
+      data,
+    });
+  },
+
+  async deleteCoupon(couponId) {
+    const existed = await prisma.coupon.findUnique({ where: { id: couponId } });
+    if (!existed) {
+      throw new NotFoundException("Không tìm thấy mã giảm giá");
+    }
+
+    await prisma.coupon.delete({ where: { id: couponId } });
+    return { couponId };
+  },
+
+  async getCoupons(query = {}) {
+    const keyword = String(query.keyword || "").trim();
+    const where = keyword
+      ? {
+          code: { contains: keyword, mode: "insensitive" },
+        }
+      : {};
+
+    return prisma.coupon.findMany({
+      where,
+      orderBy: { validTo: "desc" },
+    });
+  },
+
+  async validateCoupon({ couponCode, coursePrice }) {
+    const normalizedPrice = Number(coursePrice || 0);
+    if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+      throw new BadRequestException("Giá khóa học không hợp lệ để áp mã giảm giá");
+    }
+
+    const couponResult = await getValidCouponForCheckout({
+      couponCode,
+      coursePrice: normalizedPrice,
+    });
+
+    if (!couponResult) {
+      return {
+        couponCode: "",
+        discountType: "PERCENT",
+        discountValue: 0,
+        discountPercent: 0,
+        discountAmount: 0,
+        finalAmount: normalizedPrice,
+      };
+    }
+
+    return {
+      couponCode: couponResult.coupon.code,
+      discountType: normalizeCouponDiscountType(couponResult.coupon.discountType),
+      discountValue: Number(couponResult.coupon.discount || 0),
+      discountPercent:
+        normalizeCouponDiscountType(couponResult.coupon.discountType) === "PERCENT"
+          ? Number(couponResult.coupon.discount || 0)
+          : 0,
+      discountAmount: couponResult.discountAmount,
+      finalAmount: couponResult.finalAmount,
+    };
+  },
+
   async createMomoPayment(req, courseId, amount) {
     try {
       const partnerCode = process.env.MOMO_PARTNER_CODE;

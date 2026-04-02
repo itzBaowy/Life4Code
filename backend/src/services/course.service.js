@@ -19,6 +19,42 @@ const normalizeSlug = (value) =>
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-');
 
+const toNonNegativeInt = (value, fieldName) => {
+    if (value === undefined || value === null || value === '') return null;
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+        throw new BadRequestException(`${fieldName} phải là số nguyên không âm`);
+    }
+
+    return parsed;
+};
+
+const toDiscountPercent = (value) => {
+    if (value === undefined || value === null || value === '') return null;
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+        throw new BadRequestException('discountPercent phải nằm trong khoảng 0-100');
+    }
+
+    return parsed;
+};
+
+const calculateCoursePrice = ({ originalPrice, discountPercent }) => {
+    if (!originalPrice || originalPrice <= 0) {
+        return { price: 0, originalPrice: null };
+    }
+
+    const discount = discountPercent || 0;
+    const finalPrice = Math.round(originalPrice * (100 - discount) / 100);
+
+    return {
+        price: Math.max(0, finalPrice),
+        originalPrice,
+    };
+};
+
 export const courseService = {
     async getLessonDetail(req) {
         const userId = req.user.id;
@@ -363,7 +399,15 @@ export const courseService = {
     },
 
     async createCourse(req) {
-        const { title, slug, description, thumbnail, isPublished } = req.body;
+        const {
+            title,
+            slug,
+            description,
+            thumbnail,
+            isPublished,
+            originalPrice,
+            discountPercent,
+        } = req.body;
         if (!title || !String(title).trim()) {
             throw new BadRequestException('title không được để trống');
         }
@@ -380,6 +424,16 @@ export const courseService = {
             throw new BadRequestException('slug đã tồn tại');
         }
 
+        const parsedOriginalPrice = toNonNegativeInt(originalPrice, 'originalPrice');
+        const parsedDiscountPercent = toDiscountPercent(discountPercent);
+        if (parsedDiscountPercent !== null && parsedOriginalPrice === null) {
+            throw new BadRequestException('Vui lòng nhập originalPrice khi dùng discountPercent');
+        }
+        const pricing = calculateCoursePrice({
+            originalPrice: parsedOriginalPrice,
+            discountPercent: parsedDiscountPercent,
+        });
+
         return prisma.course.create({
             data: {
                 title: String(title).trim(),
@@ -387,6 +441,8 @@ export const courseService = {
                 description: description ? String(description).trim() : null,
                 thumbnail: thumbnail ? String(thumbnail).trim() : null,
                 isPublished: Boolean(isPublished),
+                price: pricing.price,
+                originalPrice: pricing.originalPrice,
             },
         });
     },
@@ -402,7 +458,15 @@ export const courseService = {
             throw new NotFoundException('Không tìm thấy khóa học');
         }
 
-        const { title, slug, description, thumbnail, isPublished } = req.body;
+        const {
+            title,
+            slug,
+            description,
+            thumbnail,
+            isPublished,
+            originalPrice,
+            discountPercent,
+        } = req.body;
         const data = {};
 
         if (title !== undefined) data.title = String(title).trim();
@@ -427,6 +491,28 @@ export const courseService = {
             }
 
             data.slug = nextSlug;
+        }
+
+        if (originalPrice !== undefined || discountPercent !== undefined) {
+            const baseOriginalPrice =
+                originalPrice !== undefined
+                    ? toNonNegativeInt(originalPrice, 'originalPrice')
+                    : Number(existing.originalPrice || existing.price || 0);
+
+            const baseDiscountPercent =
+                discountPercent !== undefined
+                    ? toDiscountPercent(discountPercent)
+                    : existing.originalPrice && existing.originalPrice > 0
+                        ? (1 - Number(existing.price || 0) / Number(existing.originalPrice)) * 100
+                        : 0;
+
+            const pricing = calculateCoursePrice({
+                originalPrice: baseOriginalPrice,
+                discountPercent: baseDiscountPercent,
+            });
+
+            data.price = pricing.price;
+            data.originalPrice = pricing.originalPrice;
         }
 
         return prisma.course.update({
