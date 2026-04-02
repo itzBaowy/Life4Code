@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -8,6 +8,10 @@ import {
 } from "../../services/Course/CourseService";
 import { useNotification } from "../../components/common/NotificationStack";
 import RichTextEditor from "../../components/common/RichTextEditor";
+import {
+  getVideoPresignedUrlService,
+  uploadFileToPresignedUrl,
+} from "../../services/Upload/UploadService";
 
 const normalizeErrorMessage = (error, fallbackMessage) => {
   return (
@@ -39,6 +43,17 @@ const isValidHttpUrl = (value) => {
   }
 };
 
+const MAX_VIDEO_SIZE_MB = 300;
+
+const formatEta = (seconds) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "--";
+  if (seconds < 60) return `${Math.ceil(seconds)}s`;
+
+  const minutes = Math.floor(seconds / 60);
+  const remainSeconds = Math.ceil(seconds % 60);
+  return `${minutes}m ${remainSeconds}s`;
+};
+
 const LessonEditPage = () => {
   const navigate = useNavigate();
   const { role, courseId, lessonId } = useParams();
@@ -46,6 +61,14 @@ const LessonEditPage = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [uploadStats, setUploadStats] = useState({
+    percent: 0,
+    speedMBps: 0,
+    remainingSeconds: Number.POSITIVE_INFINITY,
+  });
+  const [videoFile, setVideoFile] = useState(null);
+  const uploadCancelRef = useRef(null);
   const [courseTitle, setCourseTitle] = useState("");
   const [lessonTitle, setLessonTitle] = useState("");
   const [sections, setSections] = useState([]);
@@ -143,6 +166,107 @@ const LessonEditPage = () => {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  const handleSelectVideoFile = (event) => {
+    const file = event.target.files?.[0] || null;
+
+    if (file && file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+      showError(
+        "Validation Error",
+        `Kích thước video vượt quá ${MAX_VIDEO_SIZE_MB}MB. Vui lòng chọn file nhỏ hơn.`,
+      );
+      event.target.value = "";
+      setVideoFile(null);
+      return;
+    }
+
+    setVideoFile(file);
+    setUploadStats({
+      percent: 0,
+      speedMBps: 0,
+      remainingSeconds: Number.POSITIVE_INFINITY,
+    });
+  };
+
+  const handleCancelUpload = () => {
+    if (uploadCancelRef.current) {
+      uploadCancelRef.current();
+      uploadCancelRef.current = null;
+      setIsUploadingVideo(false);
+      showError("Upload Cancelled", "Đã hủy upload video");
+    }
+  };
+
+  const handleUploadVideoToS3 = async () => {
+    if (!videoFile) {
+      showError("Validation Error", "Vui lòng chọn file video trước khi upload");
+      return;
+    }
+
+    if (!String(videoFile.type || "").startsWith("video/")) {
+      showError("Validation Error", "Chỉ chấp nhận file video");
+      return;
+    }
+
+    setIsUploadingVideo(true);
+    setUploadStats({
+      percent: 0,
+      speedMBps: 0,
+      remainingSeconds: Number.POSITIVE_INFINITY,
+    });
+    try {
+      const response = await getVideoPresignedUrlService({
+        fileName: videoFile.name,
+        fileType: videoFile.type,
+      });
+
+      const payload = response?.data?.data ?? response?.data?.content;
+      const uploadUrl = payload?.uploadUrl;
+      const fileUrl = payload?.fileUrl;
+
+      if (!uploadUrl || !fileUrl) {
+        throw new Error("Invalid presigned URL response");
+      }
+
+      const uploadTask = uploadFileToPresignedUrl({
+        uploadUrl,
+        file: videoFile,
+        fileType: videoFile.type,
+        onProgress: (stats) =>
+          setUploadStats({
+            percent: stats?.percent || 0,
+            speedMBps: stats?.speedMBps || 0,
+            remainingSeconds:
+              stats?.remainingSeconds ?? Number.POSITIVE_INFINITY,
+          }),
+      });
+      uploadCancelRef.current = uploadTask.cancel;
+
+      await uploadTask.promise;
+
+      setFormData((prev) => ({
+        ...prev,
+        type: "VIDEO",
+        videoUrl: fileUrl,
+      }));
+
+      showSuccess("Upload Success", "Upload video lên S3 thành công");
+    } catch (error) {
+      const errorMessage =
+        String(error?.message || "").toLowerCase() ===
+        "upload video aborted"
+          ? "Đã hủy upload video"
+          : normalizeErrorMessage(error, "Không thể upload video lên S3");
+
+      showError(
+        "Upload Failed",
+        errorMessage,
+      );
+    } finally {
+      uploadCancelRef.current = null;
+      setIsUploadingVideo(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -297,13 +421,68 @@ const LessonEditPage = () => {
               className="rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
             />
             {formData.type === "VIDEO" && (
-              <input
-                name="videoUrl"
-                value={formData.videoUrl}
-                onChange={handleInputChange}
-                placeholder="Video URL"
-                className="rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
-              />
+              <div className="space-y-2 md:col-span-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={handleSelectVideoFile}
+                    className="block w-full max-w-md rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-sm text-slate-200 file:mr-3 file:rounded-md file:border-0 file:bg-cyan-600 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-white hover:file:bg-cyan-500"
+                  />
+                  <button
+                    type="button"
+                    disabled={isUploadingVideo || !videoFile}
+                    onClick={handleUploadVideoToS3}
+                    className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-60"
+                  >
+                    {isUploadingVideo ? "Đang upload..." : "Upload video S3"}
+                  </button>
+                  {isUploadingVideo && (
+                    <button
+                      type="button"
+                      onClick={handleCancelUpload}
+                      className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
+                    >
+                      Hủy upload
+                    </button>
+                  )}
+                </div>
+
+                {videoFile ? (
+                  <p className="text-xs text-slate-400">
+                    File đã chọn: {videoFile.name}
+                  </p>
+                ) : null}
+
+                {(isUploadingVideo || uploadStats.percent > 0) && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>Tiến độ upload</span>
+                      <span>{uploadStats.percent}%</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-[#23263a]">
+                      <div
+                        className="h-2 rounded-full bg-cyan-600 transition-all"
+                        style={{
+                          width: `${Math.max(0, Math.min(100, uploadStats.percent))}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>Tốc độ: {uploadStats.speedMBps.toFixed(2)} MB/s</span>
+                      <span>ETA: {formatEta(uploadStats.remainingSeconds)}</span>
+                    </div>
+                  </div>
+                )}
+
+                <input
+                  name="videoUrl"
+                  value={formData.videoUrl}
+                  onChange={handleInputChange}
+                  placeholder="Video URL (tự động sau khi upload hoặc nhập tay)"
+                  className="w-full rounded-lg border border-[#2f3652] bg-[#0f1320] px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+              </div>
             )}
           </div>
 

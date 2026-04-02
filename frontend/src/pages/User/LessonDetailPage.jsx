@@ -8,6 +8,7 @@ import {
 } from "../../services/Course/CourseService";
 import { useCourseProgressStore } from "../../store/CourseProgressStore";
 import HtmlRenderer from "../../components/common/HtmlRenderer";
+import VideoPlayer from "../../components/common/VideoPlayer";
 
 const normalizePayload = (response) =>
   response?.data?.data ?? response?.data?.content;
@@ -144,6 +145,32 @@ const LessonDetailPage = () => {
         } else {
           next.delete(currentLesson.id);
         }
+        return next;
+      });
+    } catch (error) {
+      setErrorMessage(
+        error?.response?.data?.message ||
+          "Khong the cap nhat trang thai bai hoc",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleVideoEnded = async () => {
+    if (!currentLesson?.id || completedLessons.has(currentLesson.id) || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateLessonProgressService(currentLesson.id, {
+        isCompleted: true,
+      });
+
+      setCompletedLessons((prev) => {
+        const next = new Set(prev);
+        next.add(currentLesson.id);
         return next;
       });
     } catch (error) {
@@ -297,15 +324,10 @@ const LessonDetailPage = () => {
           <section className="rounded-xl border border-[#23263a] bg-[#151925] p-5">
             {currentLesson.type === "VIDEO" ? (
               currentLesson.videoUrl ? (
-                <div className="overflow-hidden rounded-lg border border-[#23263a] bg-black">
-                  <iframe
-                    src={currentLesson.videoUrl}
-                    title={currentLesson.title}
-                    className="h-105 w-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+                <VideoPlayer
+                  videoUrl={currentLesson.videoUrl}
+                  onEnded={handleVideoEnded}
+                />
               ) : (
                 <p className="rounded-lg border border-dashed border-[#2f3652] bg-[#0f1320] p-4 text-sm text-slate-400">
                   Bai hoc video chua co duong dan video.
