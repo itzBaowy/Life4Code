@@ -22,6 +22,7 @@ import LessonManagementPage from "../pages/Admin/LessonManagementPage";
 import LessonEditPage from "../pages/Admin/LessonEditPage";
 import ProfilePage from "../pages/User/ProfilePage";
 import CheckoutPage from "../pages/User/CheckoutPage";
+import PaymentResultPage from "../pages/User/PaymentResultPage";
 
 export const PrivateRoute = ({ requiredMenuId, children }) => {
   const user = useUserStore((state) => state.user);
@@ -84,6 +85,7 @@ const getAllRoutes = (menu) => {
 };
 
 export const router = createBrowserRouter([
+  { path: "/payment/result", element: <PaymentResultPage /> },
   {
     element: (
       <PublicRoute>

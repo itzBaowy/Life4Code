@@ -54,6 +54,7 @@ export const courseService = {
                                 id: true,
                                 title: true,
                                 slug: true,
+                                price: true,
                             },
                         },
                     },
@@ -70,18 +71,21 @@ export const courseService = {
             throw new NotFoundException('Không tìm thấy khóa học của bài học');
         }
 
-        const enrollment = await prisma.enrollment.findUnique({
-            where: {
-                userId_courseId: {
-                    userId,
-                    courseId,
+        const coursePrice = Number(lesson.section?.course?.price || 0);
+        if (coursePrice > 0) {
+            const enrollment = await prisma.enrollment.findUnique({
+                where: {
+                    userId_courseId: {
+                        userId,
+                        courseId,
+                    },
                 },
-            },
-            select: { id: true },
-        });
+                select: { id: true },
+            });
 
-        if (!enrollment) {
-            throw new ForbiddenException('Bạn chưa đăng ký khóa học này');
+            if (!enrollment) {
+                throw new ForbiddenException('Vui lòng mua khóa học để xem nội dung này');
+            }
         }
 
         const result = {
