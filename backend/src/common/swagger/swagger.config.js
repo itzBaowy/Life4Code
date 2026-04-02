@@ -14,7 +14,7 @@ export const swaggerOptions = {
         servers: [
             mode === 'development'
                 ? { url: `http://localhost:${PORT}`, description: 'Development server' }
-                : { url: 'https://life4code.onrender.com', description: 'Production server' }
+                : { url: 'https://confidentiality-heart-ebook-princess.trycloudflare.com', description: 'Production server' }
         ],
         components: {
             securitySchemes: {

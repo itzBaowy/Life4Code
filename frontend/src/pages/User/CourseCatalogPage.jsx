@@ -23,6 +23,12 @@ const CourseCatalogPage = () => {
 
   const PAGE_SIZE = 9;
 
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(Number(amount || 0));
+
   const loadCatalog = async (targetPage = 1, searchKeyword = keyword) => {
     setIsLoading(true);
     setErrorMessage("");
@@ -129,6 +135,12 @@ const CourseCatalogPage = () => {
     }
   };
 
+  const handleGoToCheckout = (course) => {
+    navigate(`/${role}/checkout/${course.id}`, {
+      state: { course },
+    });
+  };
+
   const enrolledCourseIdSet = new Set([
     ...myEnrolledCourses.map((course) => course.id),
     ...courses.filter((course) => course.isEnrolled).map((course) => course.id),
@@ -151,7 +163,10 @@ const CourseCatalogPage = () => {
     });
   const enrolledCourses = Array.from(mergedEnrolledMap.values());
 
-  const renderCourseCard = (course) => (
+  const renderCourseCard = (course, options = {}) => {
+    const { showPrice = true } = options;
+
+    return (
     <article
       key={course.id}
       className="flex flex-col rounded-xl border border-[#23263a] bg-[#151925] p-4 shadow-sm"
@@ -176,6 +191,12 @@ const CourseCatalogPage = () => {
         <span>{course._count?.enrollments || 0} học viên</span>
       </div>
 
+      {showPrice ? (
+        <div className="mt-2 text-sm font-semibold text-cyan-400">
+          {formatCurrency(course.price)}
+        </div>
+      ) : null}
+
       <div className="mt-auto pt-4">
         {course.isEnrolled ? (
           <button
@@ -184,6 +205,14 @@ const CourseCatalogPage = () => {
             className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
           >
             Vào học
+          </button>
+        ) : Number(course.price || 0) > 0 ? (
+          <button
+            type="button"
+            onClick={() => handleGoToCheckout(course)}
+            className="w-full rounded-lg bg-[#A50064] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#8f0058]"
+          >
+            Thanh toán ngay
           </button>
         ) : (
           <button
@@ -197,7 +226,8 @@ const CourseCatalogPage = () => {
         )}
       </div>
     </article>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -255,7 +285,9 @@ const CourseCatalogPage = () => {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {availableCourses.map(renderCourseCard)}
+                  {availableCourses.map((course) =>
+                    renderCourseCard(course, { showPrice: true }),
+                  )}
                 </div>
               )}
             </div>
@@ -270,7 +302,9 @@ const CourseCatalogPage = () => {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {enrolledCourses.map(renderCourseCard)}
+                  {enrolledCourses.map((course) =>
+                    renderCourseCard(course, { showPrice: false }),
+                  )}
                 </div>
               )}
             </div>

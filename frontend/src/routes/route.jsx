@@ -21,6 +21,7 @@ import LessonDetailPage from "../pages/User/LessonDetailPage";
 import LessonManagementPage from "../pages/Admin/LessonManagementPage";
 import LessonEditPage from "../pages/Admin/LessonEditPage";
 import ProfilePage from "../pages/User/ProfilePage";
+import CheckoutPage from "../pages/User/CheckoutPage";
 
 export const PrivateRoute = ({ requiredMenuId, children }) => {
   const user = useUserStore((state) => state.user);
@@ -124,6 +125,14 @@ export const router = createBrowserRouter([
             element: (
               <PrivateRoute requiredMenuId="my-courses">
                 <LessonDetailPage />
+              </PrivateRoute>
+            ),
+          },
+          {
+            path: "checkout/:courseId",
+            element: (
+              <PrivateRoute requiredMenuId="course-catalog">
+                <CheckoutPage />
               </PrivateRoute>
             ),
           },

@@ -314,6 +314,8 @@ export const courseService = {
                 slug: true,
                 thumbnail: true,
                 description: true,
+                price: true,
+                originalPrice: true,
                 isPublished: true,
                 createdAt: true,
                 updatedAt: true,

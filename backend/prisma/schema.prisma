@@ -25,6 +25,7 @@ model Users {
   createdAt DateTime @default(now())
   enrollments Enrollment[]
   lessonProgresses LessonProgress[]
+  transactions Transaction[]
 }
 
 model Role {
@@ -48,10 +49,16 @@ model Course {
   description String?
   thumbnail   String?      // Link ảnh bìa khóa học
   isPublished Boolean      @default(false)
+  price         Int       @default(0) // Giá tiền (VNĐ). Nếu = 0 là khóa Free.
+  originalPrice Int?      // Giá gốc (để làm hiệu ứng gạch ngang giảm giá)
   
+
   // Quan hệ
   sections    Section[]    // Khóa học chia làm nhiều Chương
   enrollments Enrollment[] // Những ai đang học khóa này
+  transactions  Transaction[]
+  
+
   
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -90,7 +97,7 @@ model Lesson {
   section     Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 
   progresses  LessonProgress[]
-  
+
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 }
@@ -129,4 +136,33 @@ model LessonProgress {
 
   // Đảm bảo 1 User chỉ hoàn thành 1 bài học 1 lần
   @@unique([userId, lessonId])
+}
+
+// quản lí giảm giá
+model Coupon {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  code          String   @unique // Ví dụ: TET2026
+  discount      Int      // % giảm hoặc số tiền giảm (tùy logic)
+  maxUsage      Int      // Giới hạn số lượt dùng (VD: 100 lượt)
+  usedCount     Int      @default(0) // Đã dùng bao nhiêu lượt
+  validFrom     DateTime // Ngày bắt đầu
+  validTo       DateTime // Ngày kết thúc
+  isActive      Boolean  @default(true)
+}
+
+
+// lịch sử giao dịch
+model Transaction {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @db.ObjectId
+  courseId      String   @db.ObjectId
+  amount        Int      // Số tiền thực tế học viên đã thanh toán
+  status        String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  paymentMethod String   // VNPAY, MOMO, STRIPE, BANK_TRANSFER
+  orderInfo     String?  // Thông tin mã đơn hàng từ cổng thanh toán
+  
+  users         Users    @relation(fields: [userId], references: [id])
+  course        Course   @relation(fields: [courseId], references: [id])
+  
+  createdAt     DateTime @default(now())
 }
