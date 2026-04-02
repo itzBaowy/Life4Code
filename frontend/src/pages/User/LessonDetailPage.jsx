@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import {
   getCourseLessonProgressService,
+  getLessonDetailService,
   getMyCourseDetailService,
   updateLessonProgressService,
 } from "../../services/Course/CourseService";
@@ -34,7 +35,9 @@ const LessonDetailPage = () => {
   const [expandedSectionIds, setExpandedSectionIds] = useState(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLessonLoading, setIsLessonLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [lessonDetail, setLessonDetail] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -72,6 +75,31 @@ const LessonDetailPage = () => {
     }
   }, [courseId]);
 
+  useEffect(() => {
+    const loadLessonDetail = async () => {
+      if (!lessonId) return;
+
+      setIsLessonLoading(true);
+      try {
+        const response = await getLessonDetailService(lessonId);
+        const payload = normalizePayload(response);
+        setLessonDetail(payload || null);
+      } catch (error) {
+        setLessonDetail(null);
+        setErrorMessage(
+          error?.response?.data?.message || "Khong the tai chi tiet bai hoc",
+        );
+      } finally {
+        setIsLessonLoading(false);
+      }
+    };
+
+    setLessonDetail(null);
+    if (courseId && lessonId) {
+      loadLessonDetail();
+    }
+  }, [courseId, lessonId]);
+
   const allLessons = useMemo(() => {
     const sections = courseDetail?.course?.sections || [];
     return sections.flatMap((section) => section.lessons || []);
@@ -81,6 +109,16 @@ const LessonDetailPage = () => {
     () => allLessons.find((lesson) => lesson.id === lessonId),
     [allLessons, lessonId],
   );
+
+  const resolvedLesson = useMemo(() => {
+    if (!currentLesson) return null;
+    if (lessonDetail?.id !== currentLesson.id) return currentLesson;
+
+    return {
+      ...currentLesson,
+      ...lessonDetail,
+    };
+  }, [currentLesson, lessonDetail]);
 
   const currentLessonIndex = useMemo(
     () => allLessons.findIndex((lesson) => lesson.id === lessonId),
@@ -128,22 +166,22 @@ const LessonDetailPage = () => {
   }, [courseId, courseDetail, currentSectionId]);
 
   const handleToggleCompleted = async () => {
-    if (!currentLesson?.id) return;
+    if (!resolvedLesson?.id) return;
 
-    const nextStatus = !completedLessons.has(currentLesson.id);
+    const nextStatus = !completedLessons.has(resolvedLesson.id);
     setIsSaving(true);
 
     try {
-      await updateLessonProgressService(currentLesson.id, {
+      await updateLessonProgressService(resolvedLesson.id, {
         isCompleted: nextStatus,
       });
 
       setCompletedLessons((prev) => {
         const next = new Set(prev);
         if (nextStatus) {
-          next.add(currentLesson.id);
+          next.add(resolvedLesson.id);
         } else {
-          next.delete(currentLesson.id);
+          next.delete(resolvedLesson.id);
         }
         return next;
       });
@@ -158,19 +196,19 @@ const LessonDetailPage = () => {
   };
 
   const handleVideoEnded = async () => {
-    if (!currentLesson?.id || completedLessons.has(currentLesson.id) || isSaving) {
+    if (!resolvedLesson?.id || completedLessons.has(resolvedLesson.id) || isSaving) {
       return;
     }
 
     setIsSaving(true);
     try {
-      await updateLessonProgressService(currentLesson.id, {
+      await updateLessonProgressService(resolvedLesson.id, {
         isCompleted: true,
       });
 
       setCompletedLessons((prev) => {
         const next = new Set(prev);
-        next.add(currentLesson.id);
+        next.add(resolvedLesson.id);
         return next;
       });
     } catch (error) {
@@ -209,7 +247,7 @@ const LessonDetailPage = () => {
     );
   }
 
-  if (!currentLesson) {
+  if (!resolvedLesson) {
     return (
       <div className="space-y-4">
         <button
@@ -227,7 +265,7 @@ const LessonDetailPage = () => {
     );
   }
 
-  const isCompleted = completedLessons.has(currentLesson.id);
+  const isCompleted = completedLessons.has(resolvedLesson.id);
 
   const toggleSection = (sectionId) => {
     setExpandedSectionIds((prev) => {
@@ -277,10 +315,10 @@ const LessonDetailPage = () => {
 
           <section className="min-w-0 rounded-xl border border-[#23263a] bg-[#151925] p-5">
             <h1 className="text-2xl font-bold text-slate-100">
-              {currentLesson.title}
+              {resolvedLesson.title}
             </h1>
             <p className="mt-1 text-xs text-slate-400">
-              {currentLesson.type} · {formatDuration(currentLesson.duration)}
+              {resolvedLesson.type} · {formatDuration(resolvedLesson.duration)}
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -322,10 +360,14 @@ const LessonDetailPage = () => {
           </section>
 
           <section className="rounded-xl border border-[#23263a] bg-[#151925] p-5">
-            {currentLesson.type === "VIDEO" ? (
-              currentLesson.videoUrl ? (
+            {isLessonLoading ? (
+              <p className="rounded-lg border border-dashed border-[#2f3652] bg-[#0f1320] p-4 text-sm text-slate-400">
+                Dang tai video bai hoc...
+              </p>
+            ) : resolvedLesson.type === "VIDEO" ? (
+              resolvedLesson.videoUrl ? (
                 <VideoPlayer
-                  videoUrl={currentLesson.videoUrl}
+                  videoUrl={resolvedLesson.videoUrl}
                   onEnded={handleVideoEnded}
                 />
               ) : (
@@ -337,7 +379,7 @@ const LessonDetailPage = () => {
               <div className="min-w-0 overflow-hidden rounded-lg border border-[#23263a] bg-[#0f1320] p-4">
                 <HtmlRenderer
                   htmlContent={
-                    currentLesson.content ||
+                    resolvedLesson.content ||
                     "<p>Bai hoc text chua co noi dung.</p>"
                   }
                 />
@@ -386,7 +428,7 @@ const LessonDetailPage = () => {
                   <div className="space-y-2">
                     {(section.lessons || []).map((lesson) => {
                       const lessonCompleted = completedLessons.has(lesson.id);
-                      const isCurrent = lesson.id === currentLesson.id;
+                      const isCurrent = lesson.id === resolvedLesson.id;
 
                       return (
                         <button

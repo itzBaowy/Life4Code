@@ -26,6 +26,9 @@ export const getMyCourseDetailService = (courseId) =>
 export const getCourseLessonProgressService = (courseId) =>
     api.get(`/api/course/my-courses/${courseId}/lesson-progress`);
 
+export const getLessonDetailService = (lessonId) =>
+    api.get(`/api/course/lessons/${lessonId}`);
+
 export const updateLessonProgressService = (lessonId, payload) =>
     api.patch(`/api/course/lessons/${lessonId}/progress`, payload);
 

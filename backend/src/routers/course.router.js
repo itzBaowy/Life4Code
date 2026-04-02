@@ -211,6 +211,31 @@ courseRouter.get('/my-courses/:courseId', protect, courseController.getMyCourseD
 
 /**
  * @swagger
+ * /api/course/lessons/{lessonId}:
+ *   get:
+ *     summary: Lấy chi tiết bài học (video URL có hạn nếu là VIDEO)
+ *     tags: [Course]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: lessonId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID bài học
+ *     responses:
+ *       200:
+ *         description: Lấy chi tiết bài học thành công
+ *       403:
+ *         description: Bạn chưa đăng ký khóa học này
+ *       404:
+ *         description: Không tìm thấy bài học
+ */
+courseRouter.get('/lessons/:lessonId', protect, courseController.getLessonDetail);
+
+/**
+ * @swagger
  * /api/course/lessons/{lessonId}/progress:
  *   patch:
  *     summary: Cập nhật tiến độ hoàn thành của một bài học

@@ -5,6 +5,7 @@ import {
     ForbiddenException,
     NotFoundException,
 } from '../common/helpers/exception.helper.js';
+import { awsService } from './aws.service.js';
 
 const isObjectId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ''));
 
@@ -19,6 +20,88 @@ const normalizeSlug = (value) =>
         .replace(/-+/g, '-');
 
 export const courseService = {
+    async getLessonDetail(req) {
+        const userId = req.user.id;
+        const { lessonId } = req.params;
+
+        if (!isObjectId(userId)) {
+            throw new BadRequestException('userId không hợp lệ');
+        }
+
+        if (!isObjectId(lessonId)) {
+            throw new BadRequestException('lessonId không hợp lệ');
+        }
+
+        const lesson = await prisma.lesson.findUnique({
+            where: { id: lessonId },
+            select: {
+                id: true,
+                title: true,
+                slug: true,
+                type: true,
+                content: true,
+                videoUrl: true,
+                duration: true,
+                order: true,
+                isPublished: true,
+                section: {
+                    select: {
+                        id: true,
+                        title: true,
+                        courseId: true,
+                        course: {
+                            select: {
+                                id: true,
+                                title: true,
+                                slug: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!lesson || !lesson.isPublished) {
+            throw new NotFoundException('Không tìm thấy bài học');
+        }
+
+        const courseId = lesson.section?.courseId;
+        if (!courseId) {
+            throw new NotFoundException('Không tìm thấy khóa học của bài học');
+        }
+
+        const enrollment = await prisma.enrollment.findUnique({
+            where: {
+                userId_courseId: {
+                    userId,
+                    courseId,
+                },
+            },
+            select: { id: true },
+        });
+
+        if (!enrollment) {
+            throw new ForbiddenException('Bạn chưa đăng ký khóa học này');
+        }
+
+        const result = {
+            ...lesson,
+            section: {
+                id: lesson.section.id,
+                title: lesson.section.title,
+                courseId: lesson.section.courseId,
+            },
+            course: lesson.section.course,
+        };
+
+        if (lesson.type === 'VIDEO' && lesson.videoUrl) {
+            const { downloadUrl } = await awsService.generateDownloadUrl(lesson.videoUrl);
+            result.videoUrl = downloadUrl;
+        }
+
+        return result;
+    },
+
     async getMyCourseDetail(req) {
         const userId = req.user.id;
         const { courseId } = req.params;
