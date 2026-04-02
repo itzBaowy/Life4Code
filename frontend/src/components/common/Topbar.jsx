@@ -75,7 +75,7 @@ const Topbar = () => {
     <div className="fixed left-0 right-0 top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[#23263a] bg-[#151925] px-6 shadow-md">
       {/* Logo */}
       <div className="flex items-center gap-2">
-        <img src="/logo192.png" alt="Logo" className="h-10 w-10" />
+        <img src="/favicon.svg" alt="Logo" className="h-10 w-10" />
         <span className="text-xl font-bold text-cyan-400">Life4Code</span>
       </div>
       {/* Notification & Avatar */}
