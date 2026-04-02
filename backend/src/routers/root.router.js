@@ -3,6 +3,7 @@ import authRouter from './auth.router.js';
 import courseRouter from './course.router.js';
 import userRouter from './user.router.js';
 import roleRouter from './role.router.js';
+import uploadRouter from './upload.router.js';
 
 
 
@@ -12,6 +13,7 @@ rootRouter.use("/auth", authRouter)
 rootRouter.use('/course', courseRouter)
 rootRouter.use('/users', userRouter)
 rootRouter.use('/roles', roleRouter)
+rootRouter.use('/upload', uploadRouter)
 
 
 export default rootRouter;
