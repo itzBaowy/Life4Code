@@ -21,6 +21,12 @@ export const menuConfig = [
                 roles: ["admin"],
             },
             {
+                id: "course-catalog",
+                label: "Khám phá khoá học",
+                path: "catalog",
+                roles: ["user"],
+            },
+            {
                 id: "my-courses",
                 label: "Khoá học của tôi",
                 path: "my-courses",

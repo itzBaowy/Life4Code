@@ -181,6 +181,13 @@ export const courseService = {
                         title: true,
                         thumbnail: true,
                         slug: true,
+                        description: true,
+                        _count: {
+                            select: {
+                                sections: true,
+                                enrollments: true,
+                            },
+                        },
                     },
                 },
             },
@@ -241,12 +248,28 @@ export const courseService = {
 
         const [items, totalItem] = await Promise.all([itemsPromise, totalItemPromise]);
 
+        // Đánh dấu khóa học nào user đã enroll
+        const userId = req.user?.id;
+        let enrolledCourseIds = new Set();
+        if (userId) {
+            const enrollments = await prisma.enrollment.findMany({
+                where: { userId },
+                select: { courseId: true },
+            });
+            enrolledCourseIds = new Set(enrollments.map((e) => e.courseId));
+        }
+
+        const itemsWithEnrollment = items.map((item) => ({
+            ...item,
+            isEnrolled: enrolledCourseIds.has(item.id),
+        }));
+
         return {
             page,
             pageSize,
             totalItem,
             totalPage: Math.ceil(totalItem / pageSize),
-            items,
+            items: itemsWithEnrollment,
         };
     },
 

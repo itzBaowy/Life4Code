@@ -15,6 +15,9 @@ export const getCourseCatalogService = (params = {}) => {
     return api.get(`/api/course/catalog${queryString ? `?${queryString}` : ''}`);
 };
 
+export const enrollCourseService = (courseId) =>
+    api.post(`/api/course/catalog/${courseId}/enroll`);
+
 export const getMyCoursesService = () => api.get('/api/course/my-courses');
 
 export const getMyCourseDetailService = (courseId) =>
